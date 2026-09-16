@@ -1,0 +1,50 @@
+=================================================================
+🧪 TEST DE SÉCURITÉ DE L'ENDPOINT SDK : POST /api/sdk/verify-day
+=================================================================
+
+
+Fatal error: Uncaught PDOException: SQLSTATE[23000]: Integrity constraint violation: 1048 Le champ 'description' ne peut être vide (null) in C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\PDO\Statement.php:55
+Stack trace:
+#0 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\PDO\Statement.php(55): PDOStatement->execute()
+#1 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\Middleware\AbstractStatementMiddleware.php(24): Doctrine\DBAL\Driver\PDO\Statement->execute()
+#2 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Logging\Statement.php(46): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#3 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\Middleware\AbstractStatementMiddleware.php(24): Doctrine\DBAL\Logging\Statement->execute()
+#4 C:\wamp64\www\Samre_Global\samre-backend\vendor\symfony\doctrine-bridge\Middleware\Debug\Statement.php(58): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#5 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Statement.php(104): Symfony\Bridge\Doctrine\Middleware\Debug\Statement->execute()
+#6 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Statement.php(133): Doctrine\DBAL\Statement->execute()
+#7 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\Persisters\Entity\BasicEntityPersister.php(255): Doctrine\DBAL\Statement->executeStatement()
+#8 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\UnitOfWork.php(1144): Doctrine\ORM\Persisters\Entity\BasicEntityPersister->executeInserts()
+#9 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\UnitOfWork.php(426): Doctrine\ORM\UnitOfWork->executeInserts()
+#10 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\EntityManager.php(270): Doctrine\ORM\UnitOfWork->commit()
+#11 C:\wamp64\www\Samre_Global\samre-backend\test_sdk_security.php(103): Doctrine\ORM\EntityManager->flush()
+#12 {main}
+
+Next Doctrine\DBAL\Driver\PDO\Exception: SQLSTATE[23000]: Integrity constraint violation: 1048 Le champ 'description' ne peut être vide (null) in C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\PDO\Exception.php:24
+Stack trace:
+#0 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\PDO\Statement.php(57): Doctrine\DBAL\Driver\PDO\Exception::new(Object(PDOException))
+#1 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\Middleware\AbstractStatementMiddleware.php(24): Doctrine\DBAL\Driver\PDO\Statement->execute()
+#2 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Logging\Statement.php(46): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#3 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\Middleware\AbstractStatementMiddleware.php(24): Doctrine\DBAL\Logging\Statement->execute()
+#4 C:\wamp64\www\Samre_Global\samre-backend\vendor\symfony\doctrine-bridge\Middleware\Debug\Statement.php(58): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#5 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Statement.php(104): Symfony\Bridge\Doctrine\Middleware\Debug\Statement->execute()
+#6 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Statement.php(133): Doctrine\DBAL\Statement->execute()
+#7 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\Persisters\Entity\BasicEntityPersister.php(255): Doctrine\DBAL\Statement->executeStatement()
+#8 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\UnitOfWork.php(1144): Doctrine\ORM\Persisters\Entity\BasicEntityPersister->executeInserts()
+#9 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\UnitOfWork.php(426): Doctrine\ORM\UnitOfWork->executeInserts()
+#10 C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\EntityManager.php(270): Doctrine\ORM\UnitOfWork->commit()
+#11 C:\wamp64\www\Samre_Global\samre-backend\test_sdk_security.php(103): Doctrine\ORM\EntityManager->flush()
+#12 {main}
+
+Next Doctrine\DBAL\Exception\NotNullConstraintViolationException: An exception occurred while executing a query: SQLSTATE[23000]: Integrity constraint violation: 1048 Le champ 'description' ne peut être vide (null) in C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\API\MySQL\ExceptionConverter.php on line 101
+
+Doctrine\DBAL\Exception\NotNullConstraintViolationException: An exception occurred while executing a query: SQLSTATE[23000]: Integrity constraint violation: 1048 Le champ 'description' ne peut être vide (null) in C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Driver\API\MySQL\ExceptionConverter.php on line 101
+
+Call Stack:
+    0.0011     634536   1. {main}() C:\wamp64\www\Samre_Global\samre-backend\test_sdk_security.php:0
+    0.8432   20741136   2. Doctrine\ORM\EntityManager->flush() C:\wamp64\www\Samre_Global\samre-backend\test_sdk_security.php:103
+    0.8432   20741136   3. Doctrine\ORM\UnitOfWork->commit() C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\EntityManager.php:270
+    0.9277   21830040   4. Doctrine\ORM\UnitOfWork->executeInserts() C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\UnitOfWork.php:426
+    0.9497   22346560   5. Doctrine\ORM\Persisters\Entity\BasicEntityPersister->executeInserts() C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\UnitOfWork.php:1144
+    0.9616   22455576   6. Doctrine\DBAL\Statement->executeStatement() C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\orm\src\Persisters\Entity\BasicEntityPersister.php:255
+    0.9617   22455576   7. Doctrine\DBAL\Statement->execute() C:\wamp64\www\Samre_Global\samre-backend\vendor\doctrine\dbal\src\Statement.php:133
+
