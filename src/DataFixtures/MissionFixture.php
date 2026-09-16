@@ -45,11 +45,11 @@ class MissionFixture extends Fixture implements DependentFixtureInterface
                 'image' => 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=400&q=80',
                 'application' => 'Wave CI',
                 'versionApplication' => 'v4.12.0',
-                'platforme' => 'Android & iOS',
+                'platforme' => 'Android',
                 'lienApplication' => 'https://wave.com',
                 'dureEstime' => '3 jours',
                 'remuneration' => '6500.00',
-                'conditions' => 'Avoir un smartphone Android ou iPhone avec appareil photo fonctionnel.',
+                'conditions' => 'Avoir un smartphone Android avec appareil photo fonctionnel.',
                 'souhaites' => 25,
                 'actuels' => 12,
                 'statut' => 'ouverte',
@@ -94,7 +94,7 @@ class MissionFixture extends Fixture implements DependentFixtureInterface
                 'image' => 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&q=80',
                 'application' => 'Djamo App',
                 'versionApplication' => 'v3.8.1',
-                'platforme' => 'Android & iOS',
+                'platforme' => 'Android',
                 'lienApplication' => 'https://djamo.com',
                 'dureEstime' => '5 jours',
                 'remuneration' => '8000.00',
@@ -257,9 +257,9 @@ class MissionFixture extends Fixture implements DependentFixtureInterface
             $createdMissions[] = $mission;
         }
 
-        // Créer des participations pour tous les utilisateurs existants
-        $allUsers = $userRepo->findAll();
-        foreach ($allUsers as $u) {
+        // Créer des participations uniquement pour les utilisateurs testeurs (rôle chercheur)
+        $testerUsers = $userRepo->findBy(['role' => 'chercheur']);
+        foreach ($testerUsers as $u) {
             // Participation active sur Wave Mobile Money
             $waveMission = $createdMissions[0];
             $part = new Participation();
