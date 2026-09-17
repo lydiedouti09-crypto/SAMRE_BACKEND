@@ -554,6 +554,7 @@ class AdminController extends AbstractController
                 'testeurNom' => $user ? ($user->getPrenom() . ' ' . $user->getNom()) : 'Inconnu',
                 'testeurEmail' => $user?->getEmail(),
                 'testeurTelephone' => $user?->getTelephone(),
+                'testeurPhoto' => $user?->getPhoto(),
                 'missionId' => $mission?->getId(),
                 'missionTitre' => $mission?->getTitre(),
                 'application' => $mission?->getApplication(),
@@ -710,6 +711,7 @@ class AdminController extends AbstractController
                 'email' => $user?->getEmail(),
                 'telephone' => $user?->getTelephone(),
                 'statut' => $user?->getStatut(),
+                'photo' => $user?->getPhoto(),
             ],
             'mission' => [
                 'id' => $mission?->getId(),
@@ -750,6 +752,7 @@ class AdminController extends AbstractController
                 'dateCreation' => $c->getDateCreation()?->format('Y-m-d H:i'),
                 'testeurNom' => $user ? ($user->getPrenom() . ' ' . $user->getNom()) : 'Anonyme',
                 'testeurEmail' => $user?->getEmail(),
+                'testeurPhoto' => $user?->getPhoto(),
                 'missionTitre' => $mission?->getTitre() ?: 'Mission générale',
                 'missionId' => $mission?->getId(),
             ];

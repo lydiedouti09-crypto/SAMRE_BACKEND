@@ -17,12 +17,17 @@ class EtapeController extends AbstractController
     public function __construct(
         private EntityManagerInterface $em,
         private EtapeRepository $repo,
-        private MissionRepository $missionRepo
+        private MissionRepository $missionRepo,
+        private \App\Service\DailyCodeAutomationService $automationService
     ) {}
 
     #[Route('/mission/{missionId}', name: 'by_mission', methods: ['GET'])]
     public function byMission(int $missionId): JsonResponse
     {
+        $mission = $this->missionRepo->find($missionId);
+        if ($mission) {
+            $this->automationService->ensureAllDailyEtapesForMission($mission);
+        }
         $etapes = $this->repo->findBy(['mission' => $missionId], ['ordre' => 'ASC']);
         return $this->json($etapes, 200, [], ['groups' => 'etape:read']);
     }

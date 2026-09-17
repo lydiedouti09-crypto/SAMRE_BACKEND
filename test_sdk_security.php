@@ -57,8 +57,17 @@ $em->persist($testApp);
 // 2. SETUP : Création d'une mission liée
 $testMission = new Mission();
 $testMission->setTitre('Mission Sécurité Test');
+$testMission->setDescription('Description de test de sécurité pour le SDK');
+$testMission->setObjectif('Tester la validation quotidienne par code unique');
+$testMission->setImage('app_test.png');
 $testMission->setApplicationEntity($testApp);
 $testMission->setApplication('Sécurité Test App');
+$testMission->setVersionApplication('1.0.0');
+$testMission->setPlatforme('Android');
+$testMission->setLienApplication('https://play.google.com/store/apps/details?id=com.test.app');
+$testMission->setConditionsParticipation('Testeur inscrit et sélectionné');
+$testMission->setNombreParticipantsActuels(1);
+$testMission->setDateCreation(new \DateTime());
 $testMission->setStatut('ouverte');
 $testMission->setNombreParticipantsSouhaites(12);
 $testMission->setDureEstime('12 jours');
@@ -73,6 +82,11 @@ $testEtape->setMission($testMission);
 $testEtape->setJour(1);
 $testEtape->setOrdre(1);
 $testEtape->setTitre('Jour 1 : Test Initial');
+$testEtape->setDescription('Test quotidien Jour 1');
+$testEtape->setInstruction('Effectuer le test initial et saisir le code');
+$testEtape->setResultatAttendu('Code validé dans l\'application testée');
+$testEtape->setDureeEstimee('15 min');
+$testEtape->setDateCreation(new \DateTime());
 $testEtape->setStatut('actif');
 $testEtape->setBesoinReference(true);
 $em->persist($testEtape);
@@ -86,6 +100,7 @@ $testPart->setDateDebut(new \DateTime());
 $testPart->setProgression(0);
 $testPart->setEtapesCompletees(0);
 $testPart->setEtapesTotal(12);
+$testPart->setDateCreation(new \DateTime());
 $em->persist($testPart);
 
 // 5. SETUP : Création de la référence du jour

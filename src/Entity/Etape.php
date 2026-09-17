@@ -122,6 +122,18 @@ class Etape
         return $this;
     }
 
+    public function getInstructions(): ?string
+    {
+        return $this->instruction;
+    }
+
+    public function setInstructions(string $instructions): static
+    {
+        $this->instruction = $instructions;
+
+        return $this;
+    }
+
     public function getOrdre(): ?int
     {
         return $this->ordre;

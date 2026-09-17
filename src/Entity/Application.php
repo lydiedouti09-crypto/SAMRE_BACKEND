@@ -52,11 +52,11 @@ class Application
     private ?string $developpeurEmail = null;
 
     #[ORM\Column(length: 120, unique: true)]
-    #[Groups(['application:read', 'application:admin'])]
+    #[Groups(['application:read', 'application:admin', 'mission:read'])]
     private ?string $apiKey = null;
 
     #[ORM\Column(length: 120, unique: true)]
-    #[Groups(['application:read', 'application:admin'])]
+    #[Groups(['application:read', 'application:admin', 'mission:read'])]
     private ?string $tokenIntegration = null;
 
     #[ORM\Column]

@@ -148,14 +148,33 @@ class DailyCodeAutomationService
         $now = new \DateTime();
 
         $diffDays = (int)$dateDebut->diff($now)->format('%a') + 1;
+        $completedDays = (int)$participation->getEtapesCompletees();
 
-        return max(1, min($maxDays, $diffDays));
+        // Le jour courant correspond au prochain jour à réaliser (au minimum $completedDays + 1)
+        $currentDay = max($diffDays, $completedDays + 1);
+
+        return max(1, min($maxDays, $currentDay));
+    }
+
+    /**
+     * Assure que toutes les étapes quotidiennes (1 à 12) existent pour la mission
+     */
+    public function ensureAllDailyEtapesForMission(Mission $mission): array
+    {
+        $app = $mission->getApplicationEntity();
+        $totalDays = $app?->getDureeJoursDefaut() ?: 12;
+
+        $etapes = [];
+        for ($day = 1; $day <= $totalDays; $day++) {
+            $etapes[] = $this->getOrCreateEtapeForDay($mission, $day);
+        }
+        return $etapes;
     }
 
     /**
      * Récupère ou génère à la volée une étape pour un jour donné
      */
-    private function getOrCreateEtapeForDay(Mission $mission, int $day): Etape
+    public function getOrCreateEtapeForDay(Mission $mission, int $day): Etape
     {
         $etape = $this->etapeRepo->findOneBy([
             'mission' => $mission,
@@ -168,11 +187,11 @@ class DailyCodeAutomationService
             $etape->setJour($day);
             $etape->setOrdre($day);
             $etape->setTitre('Test quotidien - Jour ' . $day);
-            $etape->setInstruction('Lancez l\'application à tester, testez les parcours utilisateurs et validez avec votre code du jour.');
-            $etape->setDescription('Validation journalière du testeur pour le jour ' . $day);
-            $etape->setResultatAttendu('Code validé dans l\'application');
+            $etape->setInstructions('Ouvrez l\'application testée sur votre smartphone, effectuez vos parcours de test et saisissez votre code du jour dans le formulaire pour valider le Jour ' . $day . '.');
+            $etape->setDescription('Test journalier (Jour ' . $day . ' sur 12)');
+            $etape->setResultatAttendu('Code validé dans l\'application testée');
             $etape->setBesoinReference(true);
-            $etape->setDureeEstimee('20 min');
+            $etape->setDureeEstimee('15-20 min');
             $etape->setStatut('actif');
             $etape->setDateCreation(new \DateTime());
 
@@ -244,9 +263,16 @@ class DailyCodeAutomationService
             ->getOneOrNullResult();
 
         if (!$reference) {
+            $currentRef = $this->ensureDailyCodeForParticipation($participation);
+            if (strtoupper($currentRef->getReference()) === $submittedCode) {
+                $reference = $currentRef;
+            }
+        }
+
+        if (!$reference) {
             return [
                 'success' => false,
-                'error' => 'Code de validation incorrect pour ce panéliste.',
+                'error' => 'Code de validation incorrect pour ce panéliste. Veuillez vérifier le code affiché sur votre espace Samré.',
                 'code' => 422
             ];
         }

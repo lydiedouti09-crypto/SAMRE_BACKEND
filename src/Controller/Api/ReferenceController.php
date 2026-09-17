@@ -60,9 +60,10 @@ class ReferenceController extends AbstractController
             'dateGeneration' => $ref->getDateGeneration()?->format(\DateTimeInterface::ATOM),
             'dateExpiration' => $ref->getDateExpiration()?->format(\DateTimeInterface::ATOM),
             'dateValidation' => $ref->getDateValidation()?->format(\DateTimeInterface::ATOM),
-            'referenceSaisie' => $ref->getReferenceSaisie(),
             'etapeId' => $etape->getId(),
             'missionId' => $etape->getMission()?->getId(),
+            'jour' => $etape->getJour() ?: $etape->getOrdre(),
+            'apiKey' => $etape->getMission()?->getApplicationEntity()?->getApiKey(),
         ], 200);
     }
 
@@ -157,6 +158,8 @@ class ReferenceController extends AbstractController
                 'code' => $ref->getReference(),
                 'missionTitre' => $mission?->getTitre() ?: 'Mission active',
                 'application' => $mission?->getApplication() ?: 'Application',
+                'missionId' => $mission?->getId(),
+                'apiKey' => $mission?->getApplicationEntity()?->getApiKey(),
                 'jour' => $jour,
                 'statut' => $ref->getStatut(),
                 'date' => $todayStr,

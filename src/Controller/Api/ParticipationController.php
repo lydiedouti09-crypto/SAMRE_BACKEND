@@ -17,7 +17,8 @@ class ParticipationController extends AbstractController
     public function __construct(
         private EntityManagerInterface $em,
         private ParticipationRepository $repo,
-        private MissionRepository $missionRepo
+        private MissionRepository $missionRepo,
+        private \App\Service\DailyCodeAutomationService $automationService
     ) {}
 
     #[Route('', name: 'my', methods: ['GET'])]
@@ -85,6 +86,7 @@ class ParticipationController extends AbstractController
         if (!$participation->getDateDebut()) {
             $participation->setDateDebut(new \DateTime());
         }
+        $this->automationService->ensureDailyCodeForParticipation($participation);
         $this->em->flush();
 
         return $this->json($participation, 200, [], ['groups' => 'participation:read']);

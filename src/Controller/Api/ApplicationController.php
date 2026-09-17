@@ -98,8 +98,8 @@ class ApplicationController extends AbstractController
         $app->setPlateforme(trim($data['plateforme'] ?? 'Android'));
         $app->setVersion(trim($data['version'] ?? '1.0.0'));
         $app->setLienTelechargement(trim($data['lienTelechargement'] ?? ''));
-        $app->setDeveloppeurNom(trim($data['developpeurNom'] ?? ''));
-        $app->setDeveloppeurEmail(trim($data['developpeurEmail'] ?? ''));
+        $app->setDeveloppeurNom(!empty($data['developpeurNom']) ? trim($data['developpeurNom']) : null);
+        $app->setDeveloppeurEmail(!empty($data['developpeurEmail']) ? trim($data['developpeurEmail']) : null);
         $app->setDureeJoursDefaut((int)($data['dureeJoursDefaut'] ?? 12));
         $app->setNbMaxPanelistes((int)($data['nbMaxPanelistes'] ?? 12));
         $app->setStatut(trim($data['statut'] ?? 'en_attente_integration'));
@@ -108,8 +108,9 @@ class ApplicationController extends AbstractController
         $this->em->flush();
 
         return $this->json([
-            'message' => 'Application créée avec succès !',
+            'message' => 'Projet de test créé avec succès !',
             'id' => $app->getId(),
+            'nom' => $app->getNom(),
             'apiKey' => $app->getApiKey(),
             'tokenIntegration' => $app->getTokenIntegration(),
         ], 201);
