@@ -123,6 +123,66 @@ class ReferenceController extends AbstractController
         ], 200, [], ['groups' => ['participation:read']]);
     }
 
+    #[Route('/daily-code', name: 'daily_code', methods: ['GET'])]
+    public function getDailyCode(): JsonResponse
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->json(['error' => 'Non authentifié'], 401);
+        }
+
+        // 1. Rechercher si l'utilisateur a une participation active en cours
+        $activeParticipation = $this->participationRepo->createQueryBuilder('p')
+            ->where('p.User = :user')
+            ->andWhere('p.status IN (:statuses)')
+            ->setParameter('user', $user)
+            ->setParameter('statuses', ['en_cours', 'commencee', 'acceptee'])
+            ->orderBy('p.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        $today = new \DateTime();
+        $todayStr = $today->format('d/m/Y');
+        $dateKey = $today->format('Y-m-d');
+
+        if ($activeParticipation) {
+            $ref = $this->automationService->ensureDailyCodeForParticipation($activeParticipation);
+            $etape = $ref->getEtape();
+            $jour = $etape ? ($etape->getJour() ?: $this->automationService->calculateCurrentDay($activeParticipation)) : 1;
+            $mission = $activeParticipation->getMission();
+
+            return $this->json([
+                'hasActiveMission' => true,
+                'code' => $ref->getReference(),
+                'missionTitre' => $mission?->getTitre() ?: 'Mission active',
+                'application' => $mission?->getApplication() ?: 'Application',
+                'jour' => $jour,
+                'statut' => $ref->getStatut(),
+                'date' => $todayStr,
+                'dateKey' => $dateKey,
+                'panelisteUid' => $activeParticipation->getPanelisteUid(),
+            ]);
+        }
+
+        // 2. Si aucune participation active, générer le code quotidien du testeur basé sur son ID et la date du jour (change chaque jour)
+        $dailySeed = sprintf('%d-%s-SAMRE-DAILY', $user->getId(), $dateKey);
+        $dailyHash = strtoupper(substr(md5($dailySeed), 0, 6));
+        $userCode = sprintf('SAM-%s', $dailyHash);
+
+        return $this->json([
+            'hasActiveMission' => false,
+            'code' => $userCode,
+            'missionTitre' => null,
+            'application' => null,
+            'jour' => (int)$today->format('d'),
+            'statut' => 'actif',
+            'date' => $todayStr,
+            'dateKey' => $dateKey,
+            'panelisteUid' => 'TST-' . strtoupper(substr(md5((string)$user->getId()), 0, 6)),
+        ]);
+    }
+
     private function generateReferenceCode(string $prefix): string
     {
         $short = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $prefix), 0, 2));

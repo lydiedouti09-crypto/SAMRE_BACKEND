@@ -25,14 +25,14 @@ class ProfileController extends AbstractController
         $user = $this->getUser();
         $data = json_decode($request->getContent(), true);
 
-        if (isset($data['nom'])) $user->setNom($data['nom']);
-        if (isset($data['prenom'])) $user->setPrenom($data['prenom']);
-        if (isset($data['email'])) $user->setEmail($data['email']);
-        if (isset($data['telephone'])) $user->setTelephone($data['telephone']);
-        if (isset($data['photo'])) $user->setPhoto($data['photo']);
-        if (isset($data['pays'])) $user->setPays($data['pays']);
-        if (isset($data['ville'])) $user->setVille($data['ville']);
-        if (isset($data['genre'])) $user->setGenre($data['genre']);
+        if (isset($data['nom'])) $user->setNom(trim($data['nom']));
+        if (isset($data['prenom'])) $user->setPrenom(trim($data['prenom']));
+        if (isset($data['email'])) $user->setEmail(trim($data['email']));
+        if (isset($data['telephone'])) $user->setTelephone(trim($data['telephone']));
+        if (isset($data['photo'])) $user->setPhoto(!empty($data['photo']) ? $data['photo'] : null);
+        if (isset($data['pays'])) $user->setPays(!empty($data['pays']) ? trim($data['pays']) : null);
+        if (isset($data['ville'])) $user->setVille(!empty($data['ville']) ? trim($data['ville']) : null);
+        if (isset($data['genre'])) $user->setGenre(!empty($data['genre']) ? trim($data['genre']) : null);
         $user->setDateModification(new \DateTime());
 
         $this->em->flush();
