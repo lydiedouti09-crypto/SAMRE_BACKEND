@@ -598,7 +598,18 @@ class AdminController extends AbstractController
             $notif = new Notification();
             $notif->setUtilisateur($user);
             $notif->setTitre('Candidature acceptée !');
-            $notif->setMessage('Félicitations, votre participation à la mission « ' . ($mission?->getTitre() ?? 'SAMRE') . ' » a été acceptée. Vous pouvez commencer dès maintenant.');
+
+            $appNom = $mission?->getApplication() ?? ($mission?->getTitre() ?? 'l\'application');
+            $downloadUrl = $mission?->getLienApplication() ?? $mission?->getApplicationEntity()?->getLienTelechargement();
+
+            $msg = 'Félicitations, votre participation à la mission « ' . ($mission?->getTitre() ?? 'SAMRE') . ' » a été acceptée.';
+            if ($downloadUrl && trim($downloadUrl) !== '') {
+                $msg .= ' Téléchargez l\'application ' . $appNom . ' sur le Play Store : ' . trim($downloadUrl);
+            } else {
+                $msg .= ' Retrouvez le lien Google Play sur votre tableau de bord pour installer ' . $appNom . ' et débuter le test.';
+            }
+
+            $notif->setMessage($msg);
             $notif->setType('succes');
             $notif->setLu(false);
             $notif->setDateCreation(new \DateTime());

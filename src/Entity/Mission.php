@@ -45,7 +45,7 @@ class Mission
     #[Groups(['mission:read', 'participation:read'])]
     private ?string $platforme = null;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 255, nullable: true)]
     #[Groups(['mission:read', 'participation:read'])]
     private ?string $LienApplication = null;
 
@@ -119,7 +119,7 @@ class Mission
 
     #[ORM\ManyToOne(targetEntity: Application::class, inversedBy: 'missions')]
     #[ORM\JoinColumn(name: 'application_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    #[Groups(['mission:read'])]
+    #[Groups(['mission:read', 'participation:read'])]
     private ?Application $applicationEntity = null;
 
     public function __construct()
@@ -219,12 +219,21 @@ class Mission
         return $this;
     }
 
+    #[Groups(['mission:read', 'participation:read'])]
     public function getLienApplication(): ?string
     {
-        return $this->LienApplication;
+        if ($this->LienApplication && trim($this->LienApplication) !== '') {
+            return $this->LienApplication;
+        }
+
+        if ($this->applicationEntity && $this->applicationEntity->getLienTelechargement()) {
+            return $this->applicationEntity->getLienTelechargement();
+        }
+
+        return null;
     }
 
-    public function setLienApplication(string $LienApplication): static
+    public function setLienApplication(?string $LienApplication): static
     {
         $this->LienApplication = $LienApplication;
 

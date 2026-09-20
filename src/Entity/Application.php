@@ -16,31 +16,31 @@ class Application
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['application:read', 'mission:read'])]
+    #[Groups(['application:read', 'mission:read', 'participation:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['application:read', 'mission:read'])]
+    #[Groups(['application:read', 'mission:read', 'participation:read'])]
     private ?string $nom = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['application:read', 'mission:read'])]
+    #[Groups(['application:read', 'mission:read', 'participation:read'])]
     private ?string $description = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['application:read', 'mission:read'])]
+    #[Groups(['application:read', 'mission:read', 'participation:read'])]
     private ?string $logo = null;
 
     #[ORM\Column(length: 100)]
-    #[Groups(['application:read', 'mission:read'])]
+    #[Groups(['application:read', 'mission:read', 'participation:read'])]
     private ?string $plateforme = 'Android';
 
     #[ORM\Column(length: 50)]
-    #[Groups(['application:read', 'mission:read'])]
+    #[Groups(['application:read', 'mission:read', 'participation:read'])]
     private ?string $version = '1.0.0';
 
     #[ORM\Column(length: 500, nullable: true)]
-    #[Groups(['application:read', 'mission:read'])]
+    #[Groups(['application:read', 'mission:read', 'participation:read'])]
     private ?string $lienTelechargement = null;
 
     #[ORM\Column(length: 255, nullable: true)]
