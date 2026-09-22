@@ -59,6 +59,14 @@ class Application
     #[Groups(['application:read', 'application:admin', 'mission:read'])]
     private ?string $tokenIntegration = null;
 
+    #[ORM\Column(length: 120, unique: true, nullable: true)]
+    #[Groups(['application:read', 'application:admin'])]
+    private ?string $sdkToken = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['application:read', 'application:admin'])]
+    private ?string $secretKey = null;
+
     #[ORM\Column]
     #[Groups(['application:read', 'mission:read'])]
     private ?int $dureeJoursDefaut = 12;
@@ -92,6 +100,8 @@ class Application
         $this->dateModification = new \DateTime();
         $this->apiKey = 'sk_app_' . bin2hex(random_bytes(16));
         $this->tokenIntegration = 'integ_' . bin2hex(random_bytes(12));
+        $this->sdkToken = 'sdk_' . bin2hex(random_bytes(16));
+        $this->secretKey = 'sk_hmac_' . bin2hex(random_bytes(32));
     }
 
     public function getId(): ?int
@@ -214,6 +224,44 @@ class Application
     {
         $this->tokenIntegration = $tokenIntegration;
         return $this;
+    }
+
+    public function getSdkToken(): ?string
+    {
+        return $this->sdkToken;
+    }
+
+    public function setSdkToken(?string $sdkToken): static
+    {
+        $this->sdkToken = $sdkToken;
+        return $this;
+    }
+
+    public function regenerateSdkToken(): string
+    {
+        $this->sdkToken = 'sdk_' . bin2hex(random_bytes(16));
+        $this->dateModification = new \DateTime();
+
+        return $this->sdkToken;
+    }
+
+    public function getSecretKey(): ?string
+    {
+        return $this->secretKey;
+    }
+
+    public function setSecretKey(?string $secretKey): static
+    {
+        $this->secretKey = $secretKey;
+        return $this;
+    }
+
+    public function regenerateSecretKey(): string
+    {
+        $this->secretKey = 'sk_' . bin2hex(random_bytes(32));
+        $this->dateModification = new \DateTime();
+
+        return $this->secretKey;
     }
 
     public function getDureeJoursDefaut(): ?int

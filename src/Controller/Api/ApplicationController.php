@@ -219,6 +219,46 @@ class ApplicationController extends AbstractController
         ]);
     }
 
+    #[Route('/{id}/sdk-config', name: 'sdk_config', methods: ['GET'])]
+    public function sdkConfig(int $id): JsonResponse
+    {
+        if ($err = $this->checkAdmin()) return $err;
+
+        $app = $this->applicationRepo->find($id);
+        if (!$app) return $this->json(['error' => 'Application non trouvée'], 404);
+
+        return $this->json([
+            'message' => 'Configuration SDK exposée sans secret HMAC serveur.',
+            'appId' => $app->getId(),
+            'apiKey' => $app->getApiKey(),
+            'sdkToken' => $app->getSdkToken(),
+            'screenLocationUrl' => '/api/v1/sdk/screen-location',
+            'verifyCodeUrl' => '/api/v1/sdk/verify-code',
+            'notes' => [
+                'neverExposeSecretKey' => 'Le secret HMAC reste strictement côté backend.',
+                'sdkTokenScope' => 'Ce token identifie uniquement cette application SDK.',
+            ],
+        ]);
+    }
+
+    #[Route('/{id}/regenerate-sdk-token', name: 'regenerate_sdk_token', methods: ['PATCH', 'POST'])]
+    public function regenerateSdkToken(int $id): JsonResponse
+    {
+        if ($err = $this->checkAdmin()) return $err;
+
+        $app = $this->applicationRepo->find($id);
+        if (!$app) return $this->json(['error' => 'Application non trouvée'], 404);
+
+        $newToken = $app->regenerateSdkToken();
+        $this->em->flush();
+
+        return $this->json([
+            'message' => 'Nouveau token SDK généré avec succès.',
+            'sdkToken' => $newToken,
+            'appId' => $app->getId(),
+        ]);
+    }
+
     #[Route('/{id}', name: 'delete', methods: ['DELETE'])]
     public function delete(int $id): JsonResponse
     {

@@ -48,6 +48,14 @@ class Participation
     #[Groups(['participation:read',])]
     private ?int $etapesTotal = null;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['participation:read', 'mission:read'])]
+    private ?array $joursValides = [];
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    #[Groups(['participation:read'])]
+    private ?array $validationHistory = [];
+
     #[ORM\Column]
     #[Groups(['participation:read',])]
     private ?\DateTime $dateCreation = null;
@@ -203,6 +211,55 @@ class Participation
     public function setEtapesTotal(int $etapesTotal): static
     {
         $this->etapesTotal = $etapesTotal;
+
+        return $this;
+    }
+
+    public function getJoursValides(): ?array
+    {
+        return $this->joursValides ?? [];
+    }
+
+    public function setJoursValides(?array $joursValides): static
+    {
+        $this->joursValides = $joursValides ?? [];
+
+        return $this;
+    }
+
+    public function addJourValide(int $jour): static
+    {
+        $jours = $this->joursValides ?? [];
+        if (!in_array($jour, $jours, true)) {
+            $jours[] = $jour;
+            $this->joursValides = $jours;
+        }
+
+        return $this;
+    }
+
+    public function getValidationHistory(): ?array
+    {
+        return $this->validationHistory ?? [];
+    }
+
+    public function setValidationHistory(?array $validationHistory): static
+    {
+        $this->validationHistory = $validationHistory ?? [];
+
+        return $this;
+    }
+
+    public function addValidationAttempt(string $deviceId, string $ipAddress, int $jour): static
+    {
+        $history = $this->validationHistory ?? [];
+        $history[] = [
+            'deviceId' => $deviceId,
+            'ipAddress' => $ipAddress,
+            'jour' => $jour,
+            'timestamp' => (new \DateTimeImmutable())->format('c'),
+        ];
+        $this->validationHistory = $history;
 
         return $this;
     }
