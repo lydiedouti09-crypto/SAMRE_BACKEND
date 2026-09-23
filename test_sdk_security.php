@@ -8,6 +8,7 @@ use App\Entity\Mission;
 use App\Entity\Participation;
 use App\Entity\Etape;
 use App\Entity\Reference;
+use App\Entity\User;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Dotenv\Dotenv;
 
@@ -21,9 +22,11 @@ $kernel->boot();
 $container = $kernel->getContainer();
 $em = $container->get('doctrine.orm.entity_manager');
 $sdkController = $container->get('App\\Controller\\Api\\SdkController');
+$dailyCodeController = $container->get('App\\Controller\\Api\\DailyCodeController');
+$dailyCodeService = $container->get('App\\Service\\DailyCodeService');
 
 echo "=================================================================\n";
-echo "🧪 TEST DE SÉCURITÉ DE L'ENDPOINT SDK : POST /api/sdk/verify-day\n";
+echo "🧪 TEST DE SÉCURITÉ ET DE VALIDATION DU NOUVEAU SYSTÈME HMAC\n";
 echo "=================================================================\n\n";
 
 $passCount = 0;
@@ -42,206 +45,183 @@ function assertTest(string $title, bool $condition, string $detail = '') {
     }
 }
 
-// 1. SETUP : Création d'une application de test avec sa vraie clé API
+// -------------------------------------------------------------
+// SECTION A : TEST UNITAIRE DU SERVICE HMAC (DailyCodeService)
+// -------------------------------------------------------------
+echo "--- Section A : Test Unitaire de DailyCodeService ---\n";
+
+$secret = 'test_secret_key_64_characters_hex_0123456789abcdef0123456789abcdef';
+$codeDay1 = $dailyCodeService->generateToken($secret, 1, 2, 3, 1);
+$codeDay2 = $dailyCodeService->generateToken($secret, 1, 2, 3, 2);
+
+assertTest(
+    "Génération code J1 format valide (8 cars Base32 avec tiret : XXXX-XXXX)",
+    preg_match('/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{4}$/', $codeDay1) === 1,
+    "Code généré J1 : $codeDay1"
+);
+
+assertTest(
+    "Codes J1 et J2 distincts pour des jours différents",
+    $codeDay1 !== $codeDay2,
+    "J1: $codeDay1 vs J2: $codeDay2"
+);
+
+assertTest(
+    "Vérification insensible à la casse et aux tirets",
+    $dailyCodeService->verifyCode(strtolower(str_replace('-', '', $codeDay1)), $secret, 1, 2, 3, 1),
+    "Saisie minuscule sans tiret acceptée"
+);
+
+assertTest(
+    "Rejet d'un code faux",
+    !$dailyCodeService->verifyCode('FAUX-CODE', $secret, 1, 2, 3, 1),
+    "Code bidon rejeté"
+);
+
+// -------------------------------------------------------------
+// SECTION B : TESTS D'INTÉGRATION ENDPOINTS
+// -------------------------------------------------------------
+echo "\n--- Section B : Configuration des Entités de Test ---\n";
+
 $testApp = new Application();
-$testApp->setNom('Sécurité Test App');
+$testApp->setNom('HMAC Test App');
 $testApp->setPlateforme('android');
 $testApp->setVersion('1.0.0');
 $testApp->setStatut('actif');
 $testApp->setApiKey('sk_app_test_' . bin2hex(random_bytes(16)));
+$testApp->setSdkToken('sdk_test_' . bin2hex(random_bytes(16)));
+$testApp->setSecretKey(bin2hex(random_bytes(32)));
 $testApp->setTokenIntegration('tok_test_' . bin2hex(random_bytes(16)));
 $testApp->setDureeJoursDefaut(12);
 $testApp->setNbMaxPanelistes(12);
 $em->persist($testApp);
 
-// 2. SETUP : Création d'une mission liée
+$testUser = new User();
+$testUser->setEmail('tester_hmac_' . bin2hex(random_bytes(4)) . '@example.com');
+$testUser->setNom('Testeur');
+$testUser->setPrenom('HMAC');
+$testUser->setRoles(['ROLE_TESTEUR']);
+$testUser->setPassword('password123');
+$em->persist($testUser);
+
 $testMission = new Mission();
-$testMission->setTitre('Mission Sécurité Test');
-$testMission->setDescription('Description de test de sécurité pour le SDK');
-$testMission->setObjectif('Tester la validation quotidienne par code unique');
-$testMission->setImage('app_test.png');
+$testMission->setTitre('Mission Test HMAC');
+$testMission->setDescription('Mission pour test de validation');
 $testMission->setApplicationEntity($testApp);
-$testMission->setApplication('Sécurité Test App');
-$testMission->setVersionApplication('1.0.0');
+$testMission->setApplication('HMAC Test App');
 $testMission->setPlatforme('Android');
-$testMission->setLienApplication('https://play.google.com/store/apps/details?id=com.test.app');
-$testMission->setConditionsParticipation('Testeur inscrit et sélectionné');
 $testMission->setNombreParticipantsActuels(1);
+$testMission->setNombreParticipantsSouhaites(12);
 $testMission->setDateCreation(new \DateTime());
 $testMission->setStatut('ouverte');
-$testMission->setNombreParticipantsSouhaites(12);
 $testMission->setDureEstime('12 jours');
-$testMission->setRemuneration('5000');
 $testMission->setDateDebut(new \DateTime());
 $testMission->setDateFin((new \DateTime())->modify('+12 days'));
 $em->persist($testMission);
 
-// 3. SETUP : Création d'une étape pour le Jour 1
-$testEtape = new Etape();
-$testEtape->setMission($testMission);
-$testEtape->setJour(1);
-$testEtape->setOrdre(1);
-$testEtape->setTitre('Jour 1 : Test Initial');
-$testEtape->setDescription('Test quotidien Jour 1');
-$testEtape->setInstruction('Effectuer le test initial et saisir le code');
-$testEtape->setResultatAttendu('Code validé dans l\'application testée');
-$testEtape->setDureeEstimee('15 min');
-$testEtape->setDateCreation(new \DateTime());
-$testEtape->setStatut('actif');
-$testEtape->setBesoinReference(true);
-$em->persist($testEtape);
-
-// 4. SETUP : Création d'une participation panéliste
 $testPart = new Participation();
 $testPart->setMission($testMission);
+$testPart->setUser($testUser);
 $testPart->setStatus('en_cours');
-$testPart->setPanelisteUid('TST-SECURE-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5)));
+$testPart->setPanelisteUid('TST-HMAC-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5)));
 $testPart->setDateDebut(new \DateTime());
 $testPart->setProgression(0);
 $testPart->setEtapesCompletees(0);
 $testPart->setEtapesTotal(12);
+$testPart->setJoursValides([]);
 $testPart->setDateCreation(new \DateTime());
 $em->persist($testPart);
 
-// 5. SETUP : Création de la référence du jour
-$validDailyCode = 'SECU-J01-K9X2';
-$testRef = new Reference();
-$testRef->setMission($testMission);
-$testRef->setParticipation($testPart);
-$testRef->setEtape($testEtape);
-$testRef->setReference($validDailyCode);
-$testRef->setDateGeneration(new \DateTime());
-$testRef->setDateExpiration((new \DateTime())->modify('+48 hours'));
-$testRef->setStatut('generee');
-$em->persist($testRef);
-
 $em->flush();
 
-$validApiKey = $testApp->getApiKey();
-$validPanelisteUid = $testPart->getPanelisteUid();
+$apiKey = $testApp->getApiKey();
+$sdkToken = $testApp->getSdkToken();
+$secretKey = $testApp->getSecretKey();
+$panelisteUid = $testPart->getPanelisteUid();
+$testerId = $testUser->getId();
+$missionId = $testMission->getId();
+$appId = $testApp->getId();
 
-echo "Environnement de test préparé :\n";
-echo "  - Clé API valide générée : " . substr($validApiKey, 0, 15) . "...\n";
-echo "  - Panéliste UID généré   : $validPanelisteUid\n";
-echo "  - Code du jour généré    : $validDailyCode\n\n";
+echo "App ID: $appId | Tester ID: $testerId | Paneliste: $panelisteUid\n\n";
 
 try {
-    // --- CAS 1 : Aucune clé API transmise ---
-    echo "--- Test 1 : Rejet si aucune clé API transmise ---\n";
-    $req1 = Request::create('/api/sdk/verify-day', 'POST', [], [], [], [
+    // --- Test 1 : Rejet si mauvais code ---
+    echo "--- Test 1 : Rejet si code faux sur /api/v1/sdk/verify-code ---\n";
+    $reqBad = Request::create('/api/v1/sdk/verify-code', 'POST', [], [], [], [
         'CONTENT_TYPE' => 'application/json',
+        'HTTP_X_APP_KEY' => $apiKey,
+        'HTTP_X_SDK_TOKEN' => $sdkToken,
     ], json_encode([
-        'panelisteUid' => $validPanelisteUid,
-        'code' => $validDailyCode,
+        'testerId' => $testerId,
+        'code' => '9999-9999',
+        'deviceId' => 'device-phone-xyz',
     ]));
-    $res1 = $sdkController->verifyDay($req1);
-    $data1 = json_decode($res1->getContent(), true);
+    $resBad = $dailyCodeController->verifyCodeFromSdk($reqBad);
+    $dataBad = json_decode($resBad->getContent(), true);
     assertTest(
-        "Rejet 400 quand clé API absente",
-        $res1->getStatusCode() === 400 && $data1['success'] === false,
-        "Status: " . $res1->getStatusCode() . " | Message: " . ($data1['error'] ?? '')
+        "Rejet 422 avec code incorrect",
+        $resBad->getStatusCode() === 422 && $dataBad['success'] === false,
+        "Status: " . $resBad->getStatusCode()
     );
 
-    // --- CAS 2 : Clé API invalide / bidon (Tentative d'usurpation) ---
-    echo "\n--- Test 2 : Rejet si clé API invalide (ex: sk_app_pirate_12345) ---\n";
-    $req2 = Request::create('/api/sdk/verify-day', 'POST', [], [], [], [
+    // --- Test 2 : Validation Jour 1 avec vrai code HMAC ---
+    echo "\n--- Test 2 : Validation réussie du Jour 1 ---\n";
+    $codeJ1 = $dailyCodeService->generateToken($secretKey, $missionId, $appId, $testerId, 1);
+    $reqJ1 = Request::create('/api/v1/sdk/verify-code', 'POST', [], [], [], [
         'CONTENT_TYPE' => 'application/json',
-        'HTTP_X_APP_KEY' => 'sk_app_pirate_invalid_key_99999',
+        'HTTP_X_APP_KEY' => $apiKey,
+        'HTTP_X_SDK_TOKEN' => $sdkToken,
     ], json_encode([
-        'panelisteUid' => $validPanelisteUid,
-        'code' => $validDailyCode,
+        'panelisteUid' => $panelisteUid,
+        'code' => $codeJ1,
+        'deviceId' => 'device-phone-xyz',
     ]));
-    $res2 = $sdkController->verifyDay($req2);
-    $data2 = json_decode($res2->getContent(), true);
+    $resJ1 = $dailyCodeController->verifyCodeFromSdk($reqJ1);
+    $dataJ1 = json_decode($resJ1->getContent(), true);
+
     assertTest(
-        "Rejet 401 Unauthorized quand clé API fausse",
-        $res2->getStatusCode() === 401 && $data2['success'] === false,
-        "Status: " . $res2->getStatusCode() . " | Message: " . ($data2['error'] ?? '')
+        "Validation Jour 1 réussie (200 OK)",
+        $resJ1->getStatusCode() === 200 && ($dataJ1['success'] ?? false) === true && ($dataJ1['data']['jourValide'] ?? 0) === 1,
+        "Message: " . ($dataJ1['message'] ?? '') . " | Jour validé: " . ($dataJ1['data']['jourValide'] ?? '')
     );
 
-    // --- CAS 3 : Clé API valide mais Panéliste introuvable ---
-    echo "\n--- Test 3 : Rejet si panéliste inexistant ---\n";
-    $req3 = Request::create('/api/sdk/verify-day', 'POST', [], [], [], [
+    // --- Test 3 : Re-soumission du Jour 1 (Anti-Replay) ---
+    echo "\n--- Test 3 : Détection de rejeu sur Jour 1 déjà validé ---\n";
+    $resJ1Replay = $dailyCodeController->verifyCodeFromSdk($reqJ1);
+    $dataJ1Replay = json_decode($resJ1Replay->getContent(), true);
+
+    assertTest(
+        "Jour 1 détecté comme déjà validé (alreadyValidated = true)",
+        $resJ1Replay->getStatusCode() === 200 && ($dataJ1Replay['data']['alreadyValidated'] ?? false) === true,
+        "Message: " . ($dataJ1Replay['message'] ?? '')
+    );
+
+    // --- Test 4 : Validation Jour 2 sur le MÊME deviceId (Vérification du correctif de bug !) ---
+    echo "\n--- Test 4 : Validation réussie du Jour 2 sur le MÊME deviceId ---\n";
+    $codeJ2 = $dailyCodeService->generateToken($secretKey, $missionId, $appId, $testerId, 2);
+    $reqJ2 = Request::create('/api/v1/sdk/verify-code', 'POST', [], [], [], [
         'CONTENT_TYPE' => 'application/json',
-        'HTTP_X_APP_KEY' => $validApiKey,
+        'HTTP_X_APP_KEY' => $apiKey,
+        'HTTP_X_SDK_TOKEN' => $sdkToken,
     ], json_encode([
-        'panelisteUid' => 'TST-INEXISTANT-999',
-        'code' => $validDailyCode,
+        'panelisteUid' => $panelisteUid,
+        'code' => $codeJ2,
+        'deviceId' => 'device-phone-xyz', // MÊME smartphone que J1 !
     ]));
-    $res3 = $sdkController->verifyDay($req3);
-    $data3 = json_decode($res3->getContent(), true);
-    assertTest(
-        "Rejet 404 quand panéliste non reconnu",
-        $res3->getStatusCode() === 404 && $data3['success'] === false,
-        "Status: " . $res3->getStatusCode() . " | Message: " . ($data3['error'] ?? '')
-    );
+    $resJ2 = $dailyCodeController->verifyCodeFromSdk($reqJ2);
+    $dataJ2 = json_decode($resJ2->getContent(), true);
 
-    // --- CAS 4 : Clé API valide, Panéliste valide, mais code faux ---
-    echo "\n--- Test 4 : Rejet si le code quotidien est erroné ---\n";
-    $req4 = Request::create('/api/sdk/verify-day', 'POST', [], [], [], [
-        'CONTENT_TYPE' => 'application/json',
-        'HTTP_X_APP_KEY' => $validApiKey,
-    ], json_encode([
-        'panelisteUid' => $validPanelisteUid,
-        'code' => 'CODE-COMPLETEMENT-FAUX',
-    ]));
-    $res4 = $sdkController->verifyDay($req4);
-    $data4 = json_decode($res4->getContent(), true);
     assertTest(
-        "Rejet 422 quand code incorrect",
-        $res4->getStatusCode() === 422 && $data4['success'] === false,
-        "Status: " . $res4->getStatusCode() . " | Message: " . ($data4['error'] ?? '')
-    );
-
-    // --- CAS 5 : Clé API valide, Panéliste valide ET Vrai code quotidien ---
-    echo "\n--- Test 5 : Acceptation et Validation avec Clé API valide + Panéliste + Code exact ---\n";
-    $req5 = Request::create('/api/sdk/verify-day', 'POST', [], [], [], [
-        'CONTENT_TYPE' => 'application/json',
-        'HTTP_X_APP_KEY' => $validApiKey,
-    ], json_encode([
-        'panelisteUid' => $validPanelisteUid,
-        'code' => $validDailyCode,
-    ]));
-    $res5 = $sdkController->verifyDay($req5);
-    $data5 = json_decode($res5->getContent(), true);
-    assertTest(
-        "Succès 200 et validation de la journée",
-        $res5->getStatusCode() === 200 && $data5['success'] === true,
-        "Status: " . $res5->getStatusCode() . " | Message: " . ($data5['message'] ?? '') . " | Jour: " . ($data5['jour'] ?? '')
-    );
-
-    // Vérification de la persistance en base
-    $em->refresh($testRef);
-    $em->refresh($testPart);
-    $em->refresh($testEtape);
-    assertTest(
-        "Persistance DB : Référence marquée 'validee' avec date de validation",
-        $testRef->getStatut() === 'validee' && $testRef->getDateValidation() !== null,
-        "Statut: " . $testRef->getStatut() . " | Date: " . $testRef->getDateValidation()->format('Y-m-d H:i:s')
-    );
-    assertTest(
-        "Persistance DB : Étape marquée 'validee'",
-        $testEtape->getStatut() === 'validee',
-        "Statut Étape: " . $testEtape->getStatut()
-    );
-
-    // --- CAS 6 : Re-soumission du même code déjà validé ---
-    echo "\n--- Test 6 : Idempotence si code re-soumis ---\n";
-    $res6 = $sdkController->verifyDay($req5);
-    $data6 = json_decode($res6->getContent(), true);
-    assertTest(
-        "Succès 200 avec flag alreadyValidated = true",
-        $res6->getStatusCode() === 200 && ($data6['alreadyValidated'] ?? false) === true,
-        "Message: " . ($data6['message'] ?? '')
+        "Le même smartphone peut valider le Jour 2 sans être bloqué par l'anti-replay",
+        $resJ2->getStatusCode() === 200 && ($dataJ2['data']['jourValide'] ?? 0) === 2 && ($dataJ2['data']['progression'] ?? 0) > 0,
+        "Progression calculée : " . ($dataJ2['data']['progression'] ?? '') . "% | Étapes : 2/12"
     );
 
 } finally {
-    // Nettoyage des fixtures de test
-    echo "\nNettoyage des fixtures de test...\n";
-    $em->remove($testRef);
+    echo "\nNettoyage des entités de test...\n";
     $em->remove($testPart);
-    $em->remove($testEtape);
     $em->remove($testMission);
+    $em->remove($testUser);
     $em->remove($testApp);
     $em->flush();
 }
