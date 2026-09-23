@@ -24,6 +24,7 @@ class DailyCodeAutomationService
         private ParticipationRepository $participationRepo,
         private EtapeRepository $etapeRepo,
         private ReferenceRepository $referenceRepo,
+        private ?DailyCodeService $dailyCodeService = null,
         private ?LoggerInterface $logger = null,
         private string $codePrefix = 'SAMRE'
     ) {}
@@ -269,6 +270,36 @@ class DailyCodeAutomationService
             }
         }
 
+        // Support du code HMAC dynamique à la volée
+        if (!$reference && $this->dailyCodeService && $app->getSecretKey()) {
+            $userId = $participation->getUser()?->getId() ?: $participation->getId();
+            $isHmacValid = $this->dailyCodeService->verifyCode(
+                $submittedCode,
+                $app->getSecretKey(),
+                $mission ? $mission->getId() : 0,
+                $app->getId(),
+                $userId,
+                $currentDay
+            );
+
+            if (!$isHmacValid) {
+                // Rétrocompatibilité date du jour
+                $isHmacValid = $this->dailyCodeService->verifyCode(
+                    $submittedCode,
+                    $app->getSecretKey(),
+                    $mission ? $mission->getId() : 0,
+                    $app->getId(),
+                    $userId,
+                    new \DateTimeImmutable('today')
+                );
+            }
+
+            if ($isHmacValid) {
+                $etape = $this->getOrCreateEtapeForDay($mission, $currentDay);
+                $reference = $this->createReferenceForEtape($participation, $etape);
+            }
+        }
+
         if (!$reference) {
             return [
                 'success' => false,
@@ -311,6 +342,14 @@ class DailyCodeAutomationService
             ->getSingleScalarResult();
 
         $progression = min(100, (int)round(($valideesCount / max(1, $totalEtapes)) * 100));
+
+        // Synchroniser joursValides
+        $jours = $participation->getJoursValides() ?? [];
+        $jourNum = $etape?->getJour() ?: $currentDay;
+        if (!in_array($jourNum, $jours, true)) {
+            $jours[] = $jourNum;
+            $participation->setJoursValides($jours);
+        }
 
         $participation->setEtapesCompletees($valideesCount);
         $participation->setEtapesTotal($totalEtapes);

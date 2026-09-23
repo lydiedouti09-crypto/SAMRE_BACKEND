@@ -63,11 +63,14 @@ Body :
 ```json
 {
   "app_id": 1,
+  "panelisteUid": "TST-7A8B9C",
   "tester_id": 42,
   "deviceId": "device-123",
-  "code": "ABCD1234"
+  "code": "7K9P-4MX2"
 }
 ```
+
+> **Note :** Le testeur peut renseigner soit son `panelisteUid` (ex: `TST-7A8B9C` affiché sur son espace Samré), soit son `tester_id`. Le code est insensible à la casse et aux tirets (ex: `7k9p4mx2` ou `7K9P-4MX2`).
 
 Réponse réussie :
 ```json
@@ -75,9 +78,13 @@ Réponse réussie :
   "success": true,
   "data": {
     "valide": true,
-    "jourValide": 1
+    "alreadyValidated": false,
+    "jourValide": 1,
+    "progression": 8,
+    "totalJours": 12,
+    "terminee": false
   },
-  "message": "Code validé.",
+  "message": "Félicitations ! Jour 1 validé avec succès.",
   "errors": []
 }
 ```
