@@ -328,20 +328,12 @@ class DailyCodeAutomationService
             $etape->setStatut('validee');
         }
 
+        // Flush immédiat de la référence pour persister le statut 'validee' en base
+        $this->em->flush();
+
         // 5. Calculer la progression
         $allEtapes = $mission ? $mission->getEtapes() : [];
         $totalEtapes = count($allEtapes) ?: ($app->getDureeJoursDefaut() ?: 12);
-
-        $valideesCount = $this->referenceRepo->createQueryBuilder('r')
-            ->select('COUNT(r.id)')
-            ->where('r.participation = :part')
-            ->andWhere('r.statut = :val')
-            ->setParameter('part', $participation)
-            ->setParameter('val', 'validee')
-            ->getQuery()
-            ->getSingleScalarResult();
-
-        $progression = min(100, (int)round(($valideesCount / max(1, $totalEtapes)) * 100));
 
         // Synchroniser joursValides
         $jours = $participation->getJoursValides() ?? [];
@@ -350,6 +342,18 @@ class DailyCodeAutomationService
             $jours[] = $jourNum;
             $participation->setJoursValides($jours);
         }
+
+        $valideesQueryCount = (int)$this->referenceRepo->createQueryBuilder('r')
+            ->select('COUNT(r.id)')
+            ->where('r.participation = :part')
+            ->andWhere('r.statut = :val')
+            ->setParameter('part', $participation)
+            ->setParameter('val', 'validee')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $valideesCount = max(count($jours), $valideesQueryCount);
+        $progression = min(100, (int)round(($valideesCount / max(1, $totalEtapes)) * 100));
 
         $participation->setEtapesCompletees($valideesCount);
         $participation->setEtapesTotal($totalEtapes);

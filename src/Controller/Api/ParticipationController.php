@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\Entity\Participation;
 use App\Repository\MissionRepository;
 use App\Repository\ParticipationRepository;
+use App\Repository\ReferenceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -18,6 +19,7 @@ class ParticipationController extends AbstractController
         private EntityManagerInterface $em,
         private ParticipationRepository $repo,
         private MissionRepository $missionRepo,
+        private ReferenceRepository $referenceRepo,
         private \App\Service\DailyCodeAutomationService $automationService
     ) {}
 
@@ -26,6 +28,35 @@ class ParticipationController extends AbstractController
     {
         $user = $this->getUser();
         $participations = $this->repo->findBy(['User' => $user]);
+
+        $hasChanges = false;
+        foreach ($participations as $part) {
+            $jours = $part->getJoursValides() ?? [];
+            $valideesCount = max(count($jours), (int)$part->getEtapesCompletees());
+
+            $refValidees = (int)$this->referenceRepo->createQueryBuilder('r')
+                ->select('COUNT(r.id)')
+                ->where('r.participation = :part')
+                ->andWhere('r.statut = :val')
+                ->setParameter('part', $part)
+                ->setParameter('val', 'validee')
+                ->getQuery()
+                ->getSingleScalarResult();
+
+            $completed = max($valideesCount, $refValidees);
+            $total = max(1, (int)($part->getEtapesTotal() ?: count($part->getMission()?->getEtapes() ?? [])) ?: 12);
+
+            if ($part->getEtapesCompletees() !== $completed || ($part->getProgression() === 0 && $completed > 0)) {
+                $part->setEtapesCompletees($completed);
+                $part->setProgression(min(100, (int)round(($completed / $total) * 100)));
+                $hasChanges = true;
+            }
+        }
+
+        if ($hasChanges) {
+            $this->em->flush();
+        }
+
         return $this->json($participations, 200, [], ['groups' => 'participation:read']);
     }
 
