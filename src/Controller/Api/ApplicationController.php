@@ -68,6 +68,7 @@ class ApplicationController extends AbstractController
                 'tokenIntegration' => $app->getTokenIntegration(),
                 'dureeJoursDefaut' => $app->getDureeJoursDefaut() ?: 12,
                 'nbMaxPanelistes' => $app->getNbMaxPanelistes() ?: 12,
+                'dailyPages' => $app->getDailyPages(),
                 'statut' => $app->getStatut(),
                 'dateCreation' => $app->getDateCreation()?->format('Y-m-d H:i:s'),
                 'dateModification' => $app->getDateModification()?->format('Y-m-d H:i:s'),
@@ -166,6 +167,7 @@ class ApplicationController extends AbstractController
             'tokenIntegration' => $app->getTokenIntegration(),
             'dureeJoursDefaut' => $app->getDureeJoursDefaut() ?: 12,
             'nbMaxPanelistes' => $app->getNbMaxPanelistes() ?: 12,
+            'dailyPages' => $app->getDailyPages(),
             'statut' => $app->getStatut(),
             'dateCreation' => $app->getDateCreation()?->format('Y-m-d H:i:s'),
             'dateModification' => $app->getDateModification()?->format('Y-m-d H:i:s'),
@@ -200,6 +202,68 @@ class ApplicationController extends AbstractController
         $this->em->flush();
 
         return $this->json(['message' => 'Application mise à jour avec succès', 'id' => $app->getId()]);
+    }
+
+    #[Route('/{id}/daily-pages', name: 'daily_pages', methods: ['PUT'])]
+    public function updateDailyPages(int $id, Request $request): JsonResponse
+    {
+        if ($err = $this->checkAdmin()) return $err;
+
+        $app = $this->applicationRepo->find($id);
+        if (!$app) return $this->json(['error' => 'Application non trouvée'], 404);
+
+        $data = json_decode($request->getContent(), true) ?? [];
+        $pages = $data['dailyPages'] ?? null;
+        if (!is_array($pages)) {
+            return $this->json(['error' => 'La liste dailyPages est obligatoire.'], 400);
+        }
+
+        $normalizedPages = [];
+        $seenDays = [];
+        $maxDays = max(1, min(60, $app->getDureeJoursDefaut() ?: 12));
+
+        foreach ($pages as $page) {
+            if (!is_array($page)) {
+                return $this->json(['error' => 'Chaque page quotidienne doit être un objet valide.'], 400);
+            }
+
+            $day = filter_var($page['day'] ?? null, FILTER_VALIDATE_INT);
+            if ($day === false || $day < 1 || $day > $maxDays || isset($seenDays[$day])) {
+                return $this->json(['error' => sprintf('Jour invalide ou en double (1 à %d).', $maxDays)], 400);
+            }
+
+            $title = trim((string)($page['title'] ?? ''));
+            $body = trim((string)($page['body'] ?? ''));
+            $imageUrl = trim((string)($page['imageUrl'] ?? ''));
+            $buttonLabel = trim((string)($page['buttonLabel'] ?? 'Continuer'));
+
+            if ($title === '' || mb_strlen($title) > 120 || mb_strlen($body) > 2000 || mb_strlen($buttonLabel) > 50) {
+                return $this->json(['error' => sprintf('Le titre du Jour %d est obligatoire (120 caractères max), le texte est limité à 2 000 caractères et le bouton à 50.', $day)], 400);
+            }
+
+            if ($imageUrl !== '' && !preg_match('~^(https?://|/)~i', $imageUrl)) {
+                return $this->json(['error' => sprintf('L’image du Jour %d doit utiliser une URL HTTP(S) ou un chemin local.', $day)], 400);
+            }
+
+            $seenDays[$day] = true;
+            $normalizedPages[] = [
+                'day' => $day,
+                'title' => $title,
+                'body' => $body,
+                'imageUrl' => $imageUrl,
+                'buttonLabel' => $buttonLabel !== '' ? $buttonLabel : 'Continuer',
+            ];
+        }
+
+        usort($normalizedPages, static fn (array $a, array $b): int => $a['day'] <=> $b['day']);
+        $app->setDailyPages($normalizedPages);
+        $app->setDateModification(new \DateTime());
+        $this->em->flush();
+
+        return $this->json([
+            'message' => 'Pages quotidiennes enregistrées.',
+            'dailyPages' => $app->getDailyPages(),
+        ]);
     }
 
     #[Route('/{id}/regenerate-key', name: 'regenerate_key', methods: ['PATCH', 'POST'])]

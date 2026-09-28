@@ -65,6 +65,7 @@ class SdkController extends AbstractController
                 'plateforme' => $app->getPlateforme(),
                 'statut' => $app->getStatut(),
                 'dureeJours' => $app->getDureeJoursDefaut() ?: 12,
+                'dailyPages' => $app->getDailyPages(),
             ],
             'server' => 'Samré Central Testing Hub',
             'timestamp' => (new \DateTime())->format(\DateTimeInterface::ATOM),

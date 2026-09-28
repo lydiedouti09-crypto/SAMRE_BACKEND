@@ -79,6 +79,9 @@ class Application
     #[Groups(['application:read', 'mission:read'])]
     private ?string $statut = 'en_attente_integration'; // 'en_attente_integration', 'active', 'en_test', 'pause', 'archivee'
 
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $dailyPages = null;
+
     #[ORM\Column]
     #[Groups(['application:read'])]
     private ?\DateTime $dateCreation = null;
@@ -294,6 +297,19 @@ class Application
     public function setStatut(string $statut): static
     {
         $this->statut = $statut;
+        return $this;
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function getDailyPages(): array
+    {
+        return $this->dailyPages ?? [];
+    }
+
+    /** @param array<int, array<string, mixed>> $dailyPages */
+    public function setDailyPages(array $dailyPages): static
+    {
+        $this->dailyPages = $dailyPages;
         return $this;
     }
 
