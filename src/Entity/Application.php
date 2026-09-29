@@ -69,7 +69,7 @@ class Application
 
     #[ORM\Column]
     #[Groups(['application:read', 'mission:read'])]
-    private ?int $dureeJoursDefaut = 12;
+    private ?int $dureeJoursDefaut = 14;
 
     #[ORM\Column]
     #[Groups(['application:read', 'mission:read'])]

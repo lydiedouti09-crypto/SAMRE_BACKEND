@@ -6,6 +6,7 @@ use App\Entity\Participation;
 use App\Repository\ApplicationRepository;
 use App\Repository\ParticipationRepository;
 use App\Service\DailyCodeService;
+use App\Service\DailyCodeAutomationService;
 use App\Service\SdkSecurityService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,6 +23,7 @@ class DailyCodeController extends AbstractController
         private ApplicationRepository $applicationRepository,
         private EntityManagerInterface $entityManager,
         private SdkSecurityService $sdkSecurityService,
+        private DailyCodeAutomationService $automationService,
     ) {
     }
 
@@ -78,9 +80,8 @@ class DailyCodeController extends AbstractController
             $this->entityManager->flush();
         }
 
-        $maxDays = $application->getDureeJoursDefaut() ?: 12;
-        $completedDays = (int) $participation->getEtapesCompletees();
-        $currentDay = min($maxDays, $completedDays + 1);
+        $maxDays = $application->getDureeJoursDefaut() ?: 14;
+        $currentDay = $this->automationService->calculateCurrentDay($participation);
 
         $code = $this->dailyCodeService->generateToken(
             $application->getSecretKey(),
@@ -222,9 +223,8 @@ class DailyCodeController extends AbstractController
             ], 403);
         }
 
-        $maxDays = $application->getDureeJoursDefaut() ?: 12;
-        $completedDays = (int) $participation->getEtapesCompletees();
-        $currentDay = min($maxDays, $completedDays + 1);
+        $maxDays = $application->getDureeJoursDefaut() ?: 14;
+        $currentDay = $this->automationService->calculateCurrentDay($participation);
         $userTesterId = $participation->getUser()?->getId() ?: $testerId;
 
         // Vérification HMAC du code avec le numéro de jour courant
@@ -237,6 +237,20 @@ class DailyCodeController extends AbstractController
             $userTesterId,
             $currentDay
         );
+
+        $reference = null;
+        $isReferenceCode = false;
+        if (!$isValid) {
+            $etape = $this->automationService->getOrCreateEtapeForDay($mission, $currentDay);
+            $reference = $this->automationService->createReferenceForEtape($participation, $etape);
+            $expectedCode = strtoupper($reference->getReference());
+            $providedCode = strtoupper(trim($submittedCode));
+            $isReferenceCode = hash_equals(
+                strtr(substr($expectedCode, 0, 4), '0', 'O') . substr($expectedCode, 4),
+                strtr(substr($providedCode, 0, 4), '0', 'O') . substr($providedCode, 4)
+            );
+            $isValid = $isReferenceCode;
+        }
 
         // Fallback rétro-compatible avec date du jour au cas où le code a été généré via date
         if (!$isValid) {
@@ -261,6 +275,7 @@ class DailyCodeController extends AbstractController
 
         // Vérification anti-rejeu (le jour en cours a-t-il déjà été validé ?)
         if ($this->sdkSecurityService->isReplayAttempt($participation->getId(), $deviceId, $ipAddress, $currentDay)) {
+            $completedDays = $this->automationService->countValidatedDays($participation);
             return $this->json([
                 'success' => true,
                 'data' => [
@@ -268,8 +283,12 @@ class DailyCodeController extends AbstractController
                     'alreadyValidated' => true,
                     'jourValide' => $currentDay,
                     'progression' => $participation->getProgression(),
+                    'totalJours' => $maxDays,
+                    'terminee' => $completedDays >= $maxDays,
                 ],
-                'message' => 'Ce jour a déjà été validé avec succès !',
+                'message' => $completedDays >= $maxDays
+                    ? 'Les 14 jours de test sont terminés.'
+                    : 'Ce jour a déjà été validé avec succès !',
                 'errors' => [],
             ], 200);
         }
@@ -279,6 +298,13 @@ class DailyCodeController extends AbstractController
         if (!in_array($currentDay, $jours, true)) {
             $jours[] = $currentDay;
             $participation->setJoursValides($jours);
+        }
+
+        if ($isReferenceCode && $reference) {
+            $reference->setReferenceSaisie($submittedCode);
+            $reference->setStatut('validee');
+            $reference->setDateValidation(new \DateTime());
+            $reference->getEtape()?->setStatut('validee');
         }
 
         $this->sdkSecurityService->recordValidationAttempt($participation->getId(), $deviceId, $ipAddress, $currentDay);

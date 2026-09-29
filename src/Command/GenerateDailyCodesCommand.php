@@ -12,7 +12,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'app:missions:generate-daily-codes',
-    description: 'Génère automatiquement les codes quotidiens pour les panélistes actifs (J1 à J12)'
+    description: 'Génère automatiquement les codes quotidiens pour les panélistes actifs (J1 à J14)'
 )]
 class GenerateDailyCodesCommand extends Command
 {

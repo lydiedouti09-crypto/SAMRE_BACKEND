@@ -31,23 +31,12 @@ class ParticipationController extends AbstractController
 
         $hasChanges = false;
         foreach ($participations as $part) {
-            $jours = $part->getJoursValides() ?? [];
-            $valideesCount = max(count($jours), (int)$part->getEtapesCompletees());
+            $total = max(1, (int)($part->getMission()?->getApplicationEntity()?->getDureeJoursDefaut() ?: $part->getEtapesTotal() ?: count($part->getMission()?->getEtapes() ?? [])) ?: 14);
+            $completed = $this->automationService->countValidatedDays($part);
 
-            $refValidees = (int)$this->referenceRepo->createQueryBuilder('r')
-                ->select('COUNT(r.id)')
-                ->where('r.participation = :part')
-                ->andWhere('r.statut = :val')
-                ->setParameter('part', $part)
-                ->setParameter('val', 'validee')
-                ->getQuery()
-                ->getSingleScalarResult();
-
-            $completed = max($valideesCount, $refValidees);
-            $total = max(1, (int)($part->getEtapesTotal() ?: count($part->getMission()?->getEtapes() ?? [])) ?: 12);
-
-            if ($part->getEtapesCompletees() !== $completed || ($part->getProgression() === 0 && $completed > 0)) {
+            if ($part->getEtapesCompletees() !== $completed || $part->getEtapesTotal() !== $total || ($part->getProgression() === 0 && $completed > 0)) {
                 $part->setEtapesCompletees($completed);
+                $part->setEtapesTotal($total);
                 $part->setProgression(min(100, (int)round(($completed / $total) * 100)));
                 $hasChanges = true;
             }

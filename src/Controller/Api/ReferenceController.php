@@ -36,6 +36,12 @@ class ReferenceController extends AbstractController
         ]);
         if (!$participation) return $this->json(['error' => 'No participation'], 404);
 
+        $requestedDay = (int) ($etape->getJour() ?: $etape->getOrdre());
+        $currentDay = $this->automationService->calculateCurrentDay($participation);
+        if ($requestedDay > $currentDay) {
+            return $this->json(['error' => 'Ce jour sera disponible à la date prévue.'], 403);
+        }
+
         $ref = $this->repo->findOneBy([
             'etape' => $etape,
             'participation' => $participation
@@ -85,6 +91,15 @@ class ReferenceController extends AbstractController
         ]);
         if (!$participation) return $this->json(['error' => 'No participation'], 404);
 
+        $requestedDay = (int) ($etape->getJour() ?: $etape->getOrdre());
+        $currentDay = $this->automationService->calculateCurrentDay($participation);
+        if ($requestedDay > $currentDay) {
+            return $this->json([
+                'valid' => false,
+                'message' => 'Ce jour sera disponible à la date prévue.',
+            ], 403);
+        }
+
         $ref = $this->repo->findOneBy([
             'etape' => $etape,
             'participation' => $participation
@@ -100,15 +115,18 @@ class ReferenceController extends AbstractController
         $etape->setStatut($isValid ? 'validee' : 'non_validee');
 
         if ($isValid) {
-            $completed = $this->etapeRepo->count([
-                'mission' => $etape->getMission(),
-                'statut' => 'validee'
-            ]);
-            $total = count($etape->getMission()->getEtapes());
+            $jours = $participation->getJoursValides() ?? [];
+            if (!in_array($requestedDay, $jours, true)) {
+                $jours[] = $requestedDay;
+                $participation->setJoursValides($jours);
+            }
+            $completed = $this->automationService->countValidatedDays($participation);
+            $total = $etape->getMission()?->getApplicationEntity()?->getDureeJoursDefaut() ?: 14;
             $participation->setEtapesCompletees($completed);
+            $participation->setEtapesTotal($total);
             $participation->setProgression($total > 0 ? round(($completed / $total) * 100) : 0);
 
-            if ($completed === $total) {
+            if ($completed >= $total) {
                 $participation->setStatut('terminee');
                 $participation->setDateFin(new \DateTime());
             }

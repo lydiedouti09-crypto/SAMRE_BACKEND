@@ -70,11 +70,6 @@ class FeedbackController extends AbstractController
 
         $this->em->persist($commentaire);
 
-        // N'activer 'remuneration_en_attente' que pour la clôture finale de la mission
-        if (!empty($data['isFinal']) || $participation->getProgression() >= 100) {
-            $participation->setStatut('remuneration_en_attente');
-        }
-
         $this->em->flush();
 
         return $this->json([

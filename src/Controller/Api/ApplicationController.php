@@ -66,7 +66,7 @@ class ApplicationController extends AbstractController
                 'developpeurEmail' => $app->getDeveloppeurEmail(),
                 'apiKey' => $app->getApiKey(),
                 'tokenIntegration' => $app->getTokenIntegration(),
-                'dureeJoursDefaut' => $app->getDureeJoursDefaut() ?: 12,
+                'dureeJoursDefaut' => $app->getDureeJoursDefaut() ?: 14,
                 'nbMaxPanelistes' => $app->getNbMaxPanelistes() ?: 12,
                 'dailyPages' => $app->getDailyPages(),
                 'statut' => $app->getStatut(),
@@ -101,7 +101,7 @@ class ApplicationController extends AbstractController
         $app->setLienTelechargement(trim($data['lienTelechargement'] ?? ''));
         $app->setDeveloppeurNom(!empty($data['developpeurNom']) ? trim($data['developpeurNom']) : null);
         $app->setDeveloppeurEmail(!empty($data['developpeurEmail']) ? trim($data['developpeurEmail']) : null);
-        $app->setDureeJoursDefaut((int)($data['dureeJoursDefaut'] ?? 12));
+        $app->setDureeJoursDefaut((int)($data['dureeJoursDefaut'] ?? 14));
         $app->setNbMaxPanelistes((int)($data['nbMaxPanelistes'] ?? 12));
         $app->setStatut(trim($data['statut'] ?? 'en_attente_integration'));
 
@@ -165,7 +165,7 @@ class ApplicationController extends AbstractController
             'developpeurEmail' => $app->getDeveloppeurEmail(),
             'apiKey' => $app->getApiKey(),
             'tokenIntegration' => $app->getTokenIntegration(),
-            'dureeJoursDefaut' => $app->getDureeJoursDefaut() ?: 12,
+            'dureeJoursDefaut' => $app->getDureeJoursDefaut() ?: 14,
             'nbMaxPanelistes' => $app->getNbMaxPanelistes() ?: 12,
             'dailyPages' => $app->getDailyPages(),
             'statut' => $app->getStatut(),
@@ -220,7 +220,7 @@ class ApplicationController extends AbstractController
 
         $normalizedPages = [];
         $seenDays = [];
-        $maxDays = max(1, min(60, $app->getDureeJoursDefaut() ?: 12));
+        $maxDays = max(1, min(60, $app->getDureeJoursDefaut() ?: 14));
 
         foreach ($pages as $page) {
             if (!is_array($page)) {

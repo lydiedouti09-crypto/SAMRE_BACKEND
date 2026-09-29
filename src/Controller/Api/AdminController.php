@@ -543,9 +543,13 @@ class AdminController extends AbstractController
             foreach ($mEtapes as $et) {
                 if ($et->getJour() > $totalJours) $totalJours = $et->getJour();
             }
+            $totalJours = $mission?->getApplicationEntity()?->getDureeJoursDefaut() ?: $totalJours;
 
-            $etapesCompletees = $p->getEtapesCompletees() ?: 0;
-            $etapesTotal = $p->getEtapesTotal() ?: (count($mEtapes) ?: 1);
+            $etapesCompletees = max(
+                count(array_unique(array_map('intval', $p->getJoursValides() ?? []))),
+                $p->getEtapesCompletees() ?: 0
+            );
+            $etapesTotal = $totalJours;
             $jourActuel = min($totalJours, (int)floor(($etapesCompletees / max(1, $etapesTotal)) * $totalJours) + 1);
 
             $result[] = [
@@ -668,7 +672,9 @@ class AdminController extends AbstractController
         $participation->setStatus($newStatus);
         if ($newStatus === 'terminee') {
             $participation->setProgression(100);
-            $participation->setDateFin(new \DateTime());
+            if (!$participation->getDateFin()) {
+                $participation->setDateFin(new \DateTime());
+            }
         }
         $this->em->flush();
 

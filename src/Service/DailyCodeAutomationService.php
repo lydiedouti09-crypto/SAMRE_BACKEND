@@ -138,32 +138,51 @@ class DailyCodeAutomationService
     }
 
     /**
-     * Calcule le jour de test en cours (ex: Jour 1 à 12)
+    * Calcule le jour suivant à valider sans compter plusieurs fois une même journée.
      */
     public function calculateCurrentDay(Participation $participation): int
     {
         $mission = $participation->getMission();
-        $maxDays = $mission?->getApplicationEntity()?->getDureeJoursDefaut() ?: 12;
+        $maxDays = $mission?->getApplicationEntity()?->getDureeJoursDefaut() ?: 14;
 
         $dateDebut = $participation->getDateDebut() ?: $participation->getDateCreation() ?: new \DateTime();
         $now = new \DateTime();
 
         $diffDays = (int)$dateDebut->diff($now)->format('%a') + 1;
-        $completedDays = (int)$participation->getEtapesCompletees();
+        $completedDays = $this->countValidatedDays($participation);
 
-        // Le jour courant correspond au prochain jour à réaliser (au minimum $completedDays + 1)
-        $currentDay = max($diffDays, $completedDays + 1);
+        // Une journée n'est accessible qu'après validation de la précédente et au jour calendaire prévu.
+        $currentDay = min($diffDays, $completedDays + 1);
 
         return max(1, min($maxDays, $currentDay));
     }
 
+    public function countValidatedDays(Participation $participation): int
+    {
+        $days = array_map('intval', $participation->getJoursValides() ?? []);
+        $references = $this->referenceRepo->findBy([
+            'participation' => $participation,
+            'statut' => 'validee',
+        ]);
+
+        foreach ($references as $reference) {
+            $etape = $reference->getEtape();
+            $day = $etape?->getJour() ?: $etape?->getOrdre();
+            if ($day) {
+                $days[] = (int) $day;
+            }
+        }
+
+        return count(array_unique($days));
+    }
+
     /**
-     * Assure que toutes les étapes quotidiennes (1 à 12) existent pour la mission
+    * Assure qu'une étape quotidienne existe pour chaque jour de la mission.
      */
     public function ensureAllDailyEtapesForMission(Mission $mission): array
     {
         $app = $mission->getApplicationEntity();
-        $totalDays = $app?->getDureeJoursDefaut() ?: 12;
+        $totalDays = $app?->getDureeJoursDefaut() ?: 14;
 
         $etapes = [];
         for ($day = 1; $day <= $totalDays; $day++) {
@@ -182,6 +201,7 @@ class DailyCodeAutomationService
             'jour' => $day,
         ]);
 
+        $totalDays = $mission->getApplicationEntity()?->getDureeJoursDefaut() ?: 14;
         if (!$etape) {
             $etape = new Etape();
             $etape->setMission($mission);
@@ -189,7 +209,7 @@ class DailyCodeAutomationService
             $etape->setOrdre($day);
             $etape->setTitre('Test quotidien - Jour ' . $day);
             $etape->setInstructions('Ouvrez l\'application testée sur votre smartphone, effectuez vos parcours de test et saisissez votre code du jour dans le formulaire pour valider le Jour ' . $day . '.');
-            $etape->setDescription('Test journalier (Jour ' . $day . ' sur 12)');
+            $etape->setDescription('Test journalier (Jour ' . $day . ' sur ' . $totalDays . ')');
             $etape->setResultatAttendu('Code validé dans l\'application testée');
             $etape->setBesoinReference(true);
             $etape->setDureeEstimee('15-20 min');
@@ -198,6 +218,12 @@ class DailyCodeAutomationService
 
             $this->em->persist($etape);
             $this->em->flush();
+        } elseif (str_starts_with($etape->getDescription() ?? '', 'Test journalier (Jour ')) {
+            $description = 'Test journalier (Jour ' . $day . ' sur ' . $totalDays . ')';
+            if ($etape->getDescription() !== $description) {
+                $etape->setDescription($description);
+                $this->em->flush();
+            }
         }
 
         return $etape;
@@ -332,8 +358,7 @@ class DailyCodeAutomationService
         $this->em->flush();
 
         // 5. Calculer la progression
-        $allEtapes = $mission ? $mission->getEtapes() : [];
-        $totalEtapes = count($allEtapes) ?: ($app->getDureeJoursDefaut() ?: 12);
+        $totalEtapes = $app->getDureeJoursDefaut() ?: 14;
 
         // Synchroniser joursValides
         $jours = $participation->getJoursValides() ?? [];
@@ -343,16 +368,7 @@ class DailyCodeAutomationService
             $participation->setJoursValides($jours);
         }
 
-        $valideesQueryCount = (int)$this->referenceRepo->createQueryBuilder('r')
-            ->select('COUNT(r.id)')
-            ->where('r.participation = :part')
-            ->andWhere('r.statut = :val')
-            ->setParameter('part', $participation)
-            ->setParameter('val', 'validee')
-            ->getQuery()
-            ->getSingleScalarResult();
-
-        $valideesCount = max(count($jours), $valideesQueryCount);
+        $valideesCount = $this->countValidatedDays($participation);
         $progression = min(100, (int)round(($valideesCount / max(1, $totalEtapes)) * 100));
 
         $participation->setEtapesCompletees($valideesCount);

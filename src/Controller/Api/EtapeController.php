@@ -25,10 +25,11 @@ class EtapeController extends AbstractController
     public function byMission(int $missionId): JsonResponse
     {
         $mission = $this->missionRepo->find($missionId);
-        if ($mission) {
-            $this->automationService->ensureAllDailyEtapesForMission($mission);
+        if (!$mission) {
+            return $this->json([], 200, [], ['groups' => 'etape:read']);
         }
-        $etapes = $this->repo->findBy(['mission' => $missionId], ['ordre' => 'ASC']);
+
+        $etapes = $this->automationService->ensureAllDailyEtapesForMission($mission);
         return $this->json($etapes, 200, [], ['groups' => 'etape:read']);
     }
 
