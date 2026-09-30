@@ -91,6 +91,16 @@ class ReferenceController extends AbstractController
         ]);
         if (!$participation) return $this->json(['error' => 'No participation'], 404);
 
+        $todayValidatedRef = $this->automationService->hasValidatedToday($participation);
+        if ($todayValidatedRef) {
+            $valDay = (int) ($todayValidatedRef->getEtape()?->getJour() ?: $todayValidatedRef->getEtape()?->getOrdre() ?: 1);
+            $nextDay = $valDay + 1;
+            return $this->json([
+                'valid' => false,
+                'message' => "Vous avez déjà validé votre journée aujourd'hui (Jour {$valDay}). Vous devez attendre demain pour valider le Jour {$nextDay}.",
+            ], 422);
+        }
+
         $requestedDay = (int) ($etape->getJour() ?: $etape->getOrdre());
         $currentDay = $this->automationService->calculateCurrentDay($participation);
         if ($requestedDay > $currentDay) {
@@ -105,6 +115,13 @@ class ReferenceController extends AbstractController
             'participation' => $participation
         ]);
         if (!$ref) return $this->json(['error' => 'No reference generated'], 404);
+
+        if ($requestedDay < $currentDay || $ref->getStatut() === 'validee') {
+            return $this->json([
+                'valid' => false,
+                'message' => 'Ce code correspond à une journée précédente déjà validée. Veuillez utiliser votre code du Jour ' . $currentDay . '.',
+            ], 422);
+        }
 
         $isValid = strtoupper(trim($referenceSaisie)) === $ref->getReference();
 

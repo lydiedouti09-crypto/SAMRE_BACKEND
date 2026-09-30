@@ -138,23 +138,53 @@ class DailyCodeAutomationService
     }
 
     /**
-    * Calcule le jour suivant à valider sans compter plusieurs fois une même journée.
+     * Vérifie si le testeur a déjà validé une étape aujourd'hui (même jour calendaire)
+     */
+    public function hasValidatedToday(Participation $participation): ?Reference
+    {
+        $todayStart = (new \DateTime('today'))->setTime(0, 0, 0);
+        $todayEnd = (new \DateTime('today'))->setTime(23, 59, 59);
+
+        return $this->referenceRepo->createQueryBuilder('r')
+            ->where('r.participation = :part')
+            ->andWhere('r.statut = :validee')
+            ->andWhere('r.dateValidation >= :todayStart')
+            ->andWhere('r.dateValidation <= :todayEnd')
+            ->setParameter('part', $participation)
+            ->setParameter('validee', 'validee')
+            ->setParameter('todayStart', $todayStart)
+            ->setParameter('todayEnd', $todayEnd)
+            ->orderBy('r.dateValidation', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
+     * Calcule le jour de test en cours.
+     * Règle stricte : 1 jour maximum validable par jour calendaire.
+     * Si le testeur a déjà validé une étape aujourd'hui, le jour actuel reste ce jour validé.
+     * Le jour suivant ne deviendra accessible que DEMAIN.
      */
     public function calculateCurrentDay(Participation $participation): int
     {
         $mission = $participation->getMission();
         $maxDays = $mission?->getApplicationEntity()?->getDureeJoursDefaut() ?: 14;
 
-        $dateDebut = $participation->getDateDebut() ?: $participation->getDateCreation() ?: new \DateTime();
-        $now = new \DateTime();
-
-        $diffDays = (int)$dateDebut->diff($now)->format('%a') + 1;
         $completedDays = $this->countValidatedDays($participation);
+        if ($completedDays >= $maxDays) {
+            return $maxDays;
+        }
 
-        // Une journée n'est accessible qu'après validation de la précédente et au jour calendaire prévu.
-        $currentDay = min($diffDays, $completedDays + 1);
+        // Si le testeur a déjà validé sa journée aujourd'hui, le jour en cours affiché est celui validé aujourd'hui
+        $todayRef = $this->hasValidatedToday($participation);
+        if ($todayRef) {
+            $todayDay = (int) ($todayRef->getEtape()?->getJour() ?: $todayRef->getEtape()?->getOrdre() ?: $completedDays);
+            return max(1, min($maxDays, $todayDay));
+        }
 
-        return max(1, min($maxDays, $currentDay));
+        // Sinon, le jour à valider est le jour suivant les étapes déjà complétées
+        return max(1, min($maxDays, $completedDays + 1));
     }
 
     public function countValidatedDays(Participation $participation): int
@@ -276,6 +306,26 @@ class DailyCodeAutomationService
             ];
         }
 
+        // 2bis. RÈGLE STRICTE : 1 SEULE VALIDATION PAR JOUR CALENDAIRE
+        // Si le panéliste a déjà validé une étape aujourd'hui, toute nouvelle validation est bloquée
+        $todayValidatedRef = $this->hasValidatedToday($participation);
+        if ($todayValidatedRef) {
+            $valDay = (int) ($todayValidatedRef->getEtape()?->getJour() ?: $todayValidatedRef->getEtape()?->getOrdre() ?: 1);
+            $nextDay = $valDay + 1;
+            $isSameCode = strtoupper(trim($submittedCode)) === strtoupper(trim($todayValidatedRef->getReference()));
+
+            $msg = $isSameCode
+                ? "Le Jour {$valDay} a déjà été validé aujourd'hui avec succès. Vous devez attendre demain pour valider le Jour {$nextDay}."
+                : "Vous avez déjà validé votre journée aujourd'hui (Jour {$valDay}). Vous devez attendre demain pour valider le Jour {$nextDay}.";
+
+            return [
+                'success' => false,
+                'error' => $msg,
+                'message' => $msg,
+                'code' => 422,
+            ];
+        }
+
         // 3. Trouver la référence correspondante
         $currentDay = $this->calculateCurrentDay($participation);
 
@@ -329,18 +379,28 @@ class DailyCodeAutomationService
         if (!$reference) {
             return [
                 'success' => false,
-                'error' => 'Code de validation incorrect pour ce panéliste. Veuillez vérifier le code affiché sur votre espace Samré.',
+                'error' => 'Code de validation incorrect. Veuillez vérifier le code affiché sur votre espace Samré pour le Jour ' . $currentDay . '.',
+                'message' => 'Code de validation incorrect. Veuillez vérifier le code affiché sur votre espace Samré pour le Jour ' . $currentDay . '.',
                 'code' => 422
             ];
         }
 
-        if ($reference->getStatut() === 'validee') {
+        $refDay = (int) ($reference->getEtape()?->getJour() ?: $reference->getEtape()?->getOrdre() ?: 0);
+        if ($reference->getStatut() === 'validee' || ($refDay > 0 && $refDay < $currentDay)) {
             return [
-                'success' => true,
-                'alreadyValidated' => true,
-                'message' => 'Ce jour a déjà été validé avec succès !',
-                'jour' => $reference->getEtape()?->getJour() ?: $currentDay,
-                'progression' => $participation->getProgression(),
+                'success' => false,
+                'error' => 'Ce code correspond au Jour ' . ($refDay ?: 'précédent') . ' qui a déjà été validé les jours précédents. Veuillez utiliser votre code du Jour ' . $currentDay . '.',
+                'message' => 'Ce code correspond au Jour ' . ($refDay ?: 'précédent') . ' qui a déjà été validé les jours précédents. Veuillez utiliser votre code du Jour ' . $currentDay . '.',
+                'code' => 422,
+            ];
+        }
+
+        if ($refDay > $currentDay) {
+            return [
+                'success' => false,
+                'error' => 'Ce code correspond au Jour ' . $refDay . '. Vous devez d\'abord valider le Jour ' . $currentDay . '.',
+                'message' => 'Ce code correspond au Jour ' . $refDay . '. Vous devez d\'abord valider le Jour ' . $currentDay . '.',
+                'code' => 422,
             ];
         }
 
