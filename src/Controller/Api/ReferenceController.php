@@ -97,7 +97,7 @@ class ReferenceController extends AbstractController
             $nextDay = $valDay + 1;
             return $this->json([
                 'valid' => false,
-                'message' => "Vous avez déjà validé votre journée aujourd'hui (Jour {$valDay}). Vous devez attendre demain pour valider le Jour {$nextDay}.",
+                'message' => "Le Jour {$valDay} a été validé. Le Jour {$nextDay} sera débloqué dans 5 minutes (mode test).",
             ], 422);
         }
 
@@ -106,7 +106,7 @@ class ReferenceController extends AbstractController
         if ($requestedDay > $currentDay) {
             return $this->json([
                 'valid' => false,
-                'message' => 'Ce jour sera disponible à la date prévue.',
+                'message' => 'Ce jour sera disponible dans 5 minutes après la validation de l\'étape précédente.',
             ], 403);
         }
 

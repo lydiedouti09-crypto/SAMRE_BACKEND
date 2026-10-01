@@ -138,33 +138,18 @@ class DailyCodeAutomationService
     }
 
     /**
-     * Vérifie si le testeur a déjà validé une étape aujourd'hui (même jour calendaire)
+     * Vérifie si le testeur a déjà validé une étape récemment.
+     * En mode test accéléré : déblocage immédiat de la journée suivante dès validation.
      */
     public function hasValidatedToday(Participation $participation): ?Reference
     {
-        $todayStart = (new \DateTime('today'))->setTime(0, 0, 0);
-        $todayEnd = (new \DateTime('today'))->setTime(23, 59, 59);
-
-        return $this->referenceRepo->createQueryBuilder('r')
-            ->where('r.participation = :part')
-            ->andWhere('r.statut = :validee')
-            ->andWhere('r.dateValidation >= :todayStart')
-            ->andWhere('r.dateValidation <= :todayEnd')
-            ->setParameter('part', $participation)
-            ->setParameter('validee', 'validee')
-            ->setParameter('todayStart', $todayStart)
-            ->setParameter('todayEnd', $todayEnd)
-            ->orderBy('r.dateValidation', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
+        // Déblocage instantané pour permettre de tester toute la suite de jours sans blocage
+        return null;
     }
 
     /**
      * Calcule le jour de test en cours.
-     * Règle stricte : 1 jour maximum validable par jour calendaire.
-     * Si le testeur a déjà validé une étape aujourd'hui, le jour actuel reste ce jour validé.
-     * Le jour suivant ne deviendra accessible que DEMAIN.
+     * En mode test : le jour actif est immédiatement le jour suivant les étapes déjà validées.
      */
     public function calculateCurrentDay(Participation $participation): int
     {
@@ -176,14 +161,6 @@ class DailyCodeAutomationService
             return $maxDays;
         }
 
-        // Si le testeur a déjà validé sa journée aujourd'hui, le jour en cours affiché est celui validé aujourd'hui
-        $todayRef = $this->hasValidatedToday($participation);
-        if ($todayRef) {
-            $todayDay = (int) ($todayRef->getEtape()?->getJour() ?: $todayRef->getEtape()?->getOrdre() ?: $completedDays);
-            return max(1, min($maxDays, $todayDay));
-        }
-
-        // Sinon, le jour à valider est le jour suivant les étapes déjà complétées
         return max(1, min($maxDays, $completedDays + 1));
     }
 
@@ -306,8 +283,7 @@ class DailyCodeAutomationService
             ];
         }
 
-        // 2bis. RÈGLE STRICTE : 1 SEULE VALIDATION PAR JOUR CALENDAIRE
-        // Si le panéliste a déjà validé une étape aujourd'hui, toute nouvelle validation est bloquée
+        // 2bis. INTERVALLE DE VALIDATION (1 jour = 5 minutes en phase de test)
         $todayValidatedRef = $this->hasValidatedToday($participation);
         if ($todayValidatedRef) {
             $valDay = (int) ($todayValidatedRef->getEtape()?->getJour() ?: $todayValidatedRef->getEtape()?->getOrdre() ?: 1);
@@ -315,8 +291,8 @@ class DailyCodeAutomationService
             $isSameCode = strtoupper(trim($submittedCode)) === strtoupper(trim($todayValidatedRef->getReference()));
 
             $msg = $isSameCode
-                ? "Le Jour {$valDay} a déjà été validé aujourd'hui avec succès. Vous devez attendre demain pour valider le Jour {$nextDay}."
-                : "Vous avez déjà validé votre journée aujourd'hui (Jour {$valDay}). Vous devez attendre demain pour valider le Jour {$nextDay}.";
+                ? "Le Jour {$valDay} a déjà été validé avec succès. Le Jour {$nextDay} sera débloqué dans 5 minutes (mode test accéléré)."
+                : "Vous venez de valider votre étape (Jour {$valDay}). Le Jour {$nextDay} sera débloqué dans 5 minutes.";
 
             return [
                 'success' => false,

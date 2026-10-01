@@ -18,11 +18,19 @@ class ApplicationRepository extends ServiceEntityRepository
 
     public function findByApiKey(string $apiKey): ?Application
     {
-        return $this->findOneBy(['apiKey' => $apiKey]);
+        $apiKey = trim($apiKey);
+        if (empty($apiKey)) return null;
+
+        return $this->findOneBy(['apiKey' => $apiKey])
+            ?: $this->findOneBy(['tokenIntegration' => $apiKey]);
     }
 
     public function findByTokenIntegration(string $token): ?Application
     {
-        return $this->findOneBy(['tokenIntegration' => $token]);
+        $token = trim($token);
+        if (empty($token)) return null;
+
+        return $this->findOneBy(['tokenIntegration' => $token])
+            ?: $this->findOneBy(['apiKey' => $token]);
     }
 }

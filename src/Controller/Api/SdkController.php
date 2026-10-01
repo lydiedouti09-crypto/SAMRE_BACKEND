@@ -65,10 +65,63 @@ class SdkController extends AbstractController
                 'plateforme' => $app->getPlateforme(),
                 'statut' => $app->getStatut(),
                 'dureeJours' => $app->getDureeJoursDefaut() ?: 14,
-                'dailyPages' => $app->getDailyPages(),
             ],
             'server' => 'Samré Central Testing Hub',
             'timestamp' => (new \DateTime())->format(\DateTimeInterface::ATOM),
+        ]);
+    }
+
+    /**
+     * Endpoint public permettant au SDK de vérifier si le testeur a déjà validé sa journée aujourd'hui
+     */
+    #[Route('/api/sdk/status', name: 'api_sdk_status', methods: ['GET', 'POST'])]
+    public function checkStatus(Request $request, \App\Repository\ParticipationRepository $participationRepo): JsonResponse
+    {
+        $apiKey = $request->headers->get('X-App-Key') 
+            ?: ($request->headers->get('X-API-KEY') ?: ($request->query->get('apiKey') ?: ''));
+        
+        $data = json_decode($request->getContent(), true) ?? [];
+        if (empty($apiKey) && !empty($data['apiKey'])) {
+            $apiKey = $data['apiKey'];
+        }
+
+        $panelisteId = $request->query->get('panelisteId') 
+            ?: ($request->query->get('panelisteUid') ?: ($data['panelisteId'] ?? ($data['panelisteUid'] ?? '')));
+
+        if (empty($apiKey)) {
+            return $this->json(['error' => 'Clé d\'intégration requise'], 401);
+        }
+
+        $app = $this->applicationRepo->findByApiKey($apiKey);
+        if (!$app) {
+            return $this->json(['error' => 'Application non reconnue'], 404);
+        }
+
+        if (empty($panelisteId)) {
+            return $this->json([
+                'validatedToday' => false,
+                'applicationActive' => $app->getStatut() === 'active',
+            ]);
+        }
+
+        $participation = $participationRepo->findOneBy(['panelisteUid' => trim($panelisteId)]);
+        if (!$participation) {
+            return $this->json([
+                'validatedToday' => false,
+                'applicationActive' => $app->getStatut() === 'active',
+            ]);
+        }
+
+        $todayRef = $this->automationService->hasValidatedToday($participation);
+        $currentDay = $this->automationService->calculateCurrentDay($participation);
+
+        return $this->json([
+            'validatedToday' => $todayRef !== null,
+            'jour' => $todayRef ? ($todayRef->getEtape()?->getJour() ?: $currentDay) : $currentDay,
+            'applicationActive' => $app->getStatut() === 'active',
+            'message' => $todayRef !== null 
+                ? 'Votre journée a déjà été validée avec succès aujourd\'hui !' 
+                : 'En attente de validation.',
         ]);
     }
 

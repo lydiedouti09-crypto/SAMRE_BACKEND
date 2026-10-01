@@ -16,13 +16,20 @@ class NotificationController extends AbstractController
     public function __construct(
         private EntityManagerInterface $em,
         private NotificationRepository $repo,
-        private ParticipationRepository $participationRepo
+        private ParticipationRepository $participationRepo,
+        private \App\Service\DailyReminderService $reminderService
     ) {}
 
     #[Route('', name: 'list', methods: ['GET'])]
     public function list(): JsonResponse
     {
         $user = $this->getUser();
+        
+        // Exécuter l'analyse des rappels automatiques (12h et 18h)
+        try {
+            $this->reminderService->processReminders();
+        } catch (\Throwable $_) {}
+
         $notifications = $this->repo->findBy(
             ['utilisateur' => $user],
             ['dateCreation' => 'DESC']
