@@ -32,4 +32,5 @@ security:
         - { path: ^/api/forgot-password, roles: PUBLIC_ACCESS }
         - { path: ^/api/sdk, roles: PUBLIC_ACCESS }
         - { path: ^/api/public, roles: PUBLIC_ACCESS }
+        - { path: ^/api/admin, roles: ROLE_ADMIN }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }

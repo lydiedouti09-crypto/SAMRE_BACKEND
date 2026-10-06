@@ -87,7 +87,14 @@ class AuthController extends AbstractController
 
         $errors = $validator->validate($user);
         if (count($errors) > 0) {
-            return $this->json(['errors' => (string) $errors], 400);
+            $messages = [];
+            foreach ($errors as $error) {
+                $messages[] = $error->getMessage();
+            }
+            return $this->json([
+                'error' => implode(' ', $messages),
+                'errors' => $messages
+            ], 400);
         }
 
         $em->persist($user);

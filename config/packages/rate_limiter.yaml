@@ -1,0 +1,10 @@
+# Configuration des seuils de sécurité et Rate Limiting SAMRE
+parameters:
+    app.rate_limit.login.max_attempts: 5
+    app.rate_limit.login.decay_seconds: 60
+
+    app.rate_limit.forgot_password.max_attempts: 3
+    app.rate_limit.forgot_password.decay_seconds: 600
+
+    app.rate_limit.register.max_attempts: 5
+    app.rate_limit.register.decay_seconds: 3600
