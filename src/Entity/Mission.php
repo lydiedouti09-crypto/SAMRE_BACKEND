@@ -173,10 +173,18 @@ class Mission
 
     public function getImage(): ?string
     {
+        if ($this->applicationEntity && $this->applicationEntity->getLogo() && trim($this->applicationEntity->getLogo()) !== '') {
+            return $this->applicationEntity->getLogo();
+        }
+
+        if ($this->image && trim($this->image) !== '' && $this->image !== '/images/mission-default.png') {
+            return $this->image;
+        }
+
         return $this->image;
     }
 
-    public function setImage(string $image): static
+    public function setImage(?string $image): static
     {
         $this->image = $image;
 
