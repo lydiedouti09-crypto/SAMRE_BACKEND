@@ -26,3 +26,6 @@ jobs:
             */node_modules/*
             */vendor/*
             .github/**
+            public/uploads/**
+            uploads/**
+            var/**
