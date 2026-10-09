@@ -219,13 +219,23 @@ class AdminController extends AbstractController
             return $this->json(['error' => 'Format non autorisé. Utilisez JPG, PNG, WEBP ou SVG.'], 400);
         }
 
-        $uploadsDir = $this->getParameter('kernel.project_dir') . '/public/uploads/missions';
+        $projectDir = $this->getParameter('kernel.project_dir');
+        $uploadsDir = $projectDir . '/public/uploads/missions';
+        $altUploadsDir = $projectDir . '/uploads/missions';
+
         if (!is_dir($uploadsDir)) {
-            mkdir($uploadsDir, 0777, true);
+            @mkdir($uploadsDir, 0777, true);
+        }
+        if (!is_dir($altUploadsDir)) {
+            @mkdir($altUploadsDir, 0777, true);
         }
 
         $filename = 'app_' . uniqid() . '.' . ($file->guessExtension() ?: 'png');
         $file->move($uploadsDir, $filename);
+
+        if (file_exists($uploadsDir . '/' . $filename)) {
+            @copy($uploadsDir . '/' . $filename, $altUploadsDir . '/' . $filename);
+        }
 
         return $this->json([
             'message' => 'Image uploadée avec succès',
