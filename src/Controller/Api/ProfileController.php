@@ -23,12 +23,25 @@ class ProfileController extends AbstractController
     #[Route('', name: 'show', methods: ['GET'])]
     public function show(): JsonResponse
     {
+        /** @var User|null $user */
         $user = $this->getUser();
         if (!$user) {
             return $this->json(['error' => 'Non authentifié'], Response::HTTP_UNAUTHORIZED);
         }
 
-        return $this->json($user, Response::HTTP_OK, [], ['groups' => 'user:read']);
+        return $this->json([
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+            'prenom' => $user->getPrenom(),
+            'nom' => $user->getNom(),
+            'role' => $user->getRole(),
+            'photo' => $user->getPhoto(),
+            'telephone' => $user->getTelephone(),
+            'pays' => $user->getPays(),
+            'ville' => $user->getVille(),
+            'genre' => $user->getGenre(),
+            'statut' => $user->getStatut(),
+        ], Response::HTTP_OK);
     }
 
     #[Route('', name: 'update', methods: ['PUT', 'POST'])]
@@ -95,7 +108,7 @@ class ProfileController extends AbstractController
 
         $user->setDateModification(new \DateTime());
 
-        // Validation stricte des données de l'entité User avant persistence
+        // Validation des données de l'entité User avant persistence
         $errors = $this->validator->validate($user);
         if (count($errors) > 0) {
             $errorMessages = [];
@@ -108,9 +121,25 @@ class ProfileController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $this->em->flush();
+        try {
+            $this->em->flush();
+        } catch (\Throwable $e) {
+            return $this->json(['error' => 'Erreur lors de l\'enregistrement : ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
 
-        return $this->json($user, Response::HTTP_OK, [], ['groups' => 'user:read']);
+        return $this->json([
+            'id' => $user->getId(),
+            'email' => $user->getEmail(),
+            'prenom' => $user->getPrenom(),
+            'nom' => $user->getNom(),
+            'role' => $user->getRole(),
+            'photo' => $user->getPhoto(),
+            'telephone' => $user->getTelephone(),
+            'pays' => $user->getPays(),
+            'ville' => $user->getVille(),
+            'genre' => $user->getGenre(),
+            'statut' => $user->getStatut(),
+        ], Response::HTTP_OK);
     }
 
     /**
